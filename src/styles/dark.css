@@ -1,0 +1,54 @@
+/* Dark mode overrides scoped to .app-dark root.
+   Keeps brand semantic colors (#496942 / #E9B44C / #D37545) intact,
+   only swaps neutrals/backgrounds/text. */
+
+.app-dark {
+  color-scheme: dark;
+  --brand-green: #62a655;
+}
+
+/* App background frame */
+.app-dark .bg-neutral-200 { background-color: #0a0a0a !important; }
+.app-dark .bg-\[\#f5f5f3\] { background-color: #181a19 !important; }
+
+/* Cards / surfaces */
+.app-dark .bg-white { background-color: #25282a !important; }
+.app-dark .bg-neutral-50 { background-color: #2d3032 !important; }
+.app-dark .bg-neutral-100 { background-color: #34373a !important; }
+.app-dark .bg-neutral-200 { background-color: #3b3e41 !important; }
+
+/* Text colors */
+.app-dark .text-neutral-900 { color: #f4f4f3 !important; }
+.app-dark .text-neutral-800 { color: #e8e8e6 !important; }
+.app-dark .text-neutral-700 { color: #d4d4d2 !important; }
+.app-dark .text-neutral-600 { color: #b8b8b6 !important; }
+.app-dark .text-neutral-500 { color: #9a9a98 !important; }
+.app-dark .text-neutral-400 { color: #7d7d7b !important; }
+.app-dark .text-neutral-300 { color: #5e5e5c !important; }
+
+/* Rings / borders */
+.app-dark .ring-black\/5 { --tw-ring-color: rgba(255,255,255,0.08) !important; }
+.app-dark .ring-black\/10 { --tw-ring-color: rgba(255,255,255,0.12) !important; }
+.app-dark .border-neutral-100 { border-color: rgba(255,255,255,0.08) !important; }
+.app-dark .border-neutral-200 { border-color: rgba(255,255,255,0.12) !important; }
+.app-dark .bg-black\/5 { background-color: rgba(255,255,255,0.06) !important; }
+
+/* Gradient app bottom fade tweaks */
+.app-dark .from-\[\#f5f5f3\] { --tw-gradient-from: #181a19 !important; }
+.app-dark .via-\[\#f5f5f3\]\/95 { --tw-gradient-via: rgba(24,26,25,0.95) !important; }
+
+/* Map base panel softer for dark */
+.app-dark .from-\[\#eef2ea\] { --tw-gradient-from: #2a3128 !important; }
+.app-dark .via-\[\#e3ead9\] { --tw-gradient-via: #303a2d !important; }
+.app-dark .to-\[\#d4dfc5\] { --tw-gradient-to: #3a4736 !important; }
+
+/* Bottom nav translucent */
+.app-dark .bg-white\/85 { background-color: rgba(37,40,42,0.85) !important; }
+.app-dark .bg-white\/70 { background-color: rgba(37,40,42,0.7) !important; }
+.app-dark .bg-white\/75 { background-color: rgba(37,40,42,0.75) !important; }
+.app-dark .bg-white\/80 { background-color: rgba(37,40,42,0.8) !important; }
+
+/* Top bar bell badge ring */
+.app-dark .ring-\[\#f5f5f3\] { --tw-ring-color: #181a19 !important; }
+
+/* Default text on map labels (svg text uses fill, leave alone) */
