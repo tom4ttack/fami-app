@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { X, User, Map as MapIcon, Moon, Type, ChevronRight, LogOut, Database } from "lucide-react";
 import { useApp, FONT_LABELS, FontScale } from "../context";
 
@@ -10,10 +11,30 @@ type Props = {
 
 export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
   const { dark, setDark, fontScale, setFontScale, mockData, setMockData, user, parcels, setStage } = useApp();
+  const [devMode, setDevMode] = useState(false);
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogout = () => {
     onClose();
     setStage("login");
+  };
+
+  const handleAvatarTap = () => {
+    tapCountRef.current += 1;
+
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+    }
+
+    if (tapCountRef.current >= 7) {
+      setDevMode(true);
+      tapCountRef.current = 0;
+    } else {
+      tapTimerRef.current = setTimeout(() => {
+        tapCountRef.current = 0;
+      }, 2000);
+    }
   };
 
   return (
@@ -31,9 +52,12 @@ export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
       >
         <div className="pt-12 px-5 pb-4 text-white" style={{ background: "linear-gradient(to bottom right, var(--brand-green), #3a5235)" }}>
           <div className="flex items-start justify-between">
-            <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur ring-1 ring-white/25 flex items-center justify-center">
+            <button
+              onClick={handleAvatarTap}
+              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur ring-1 ring-white/25 flex items-center justify-center active:scale-95 transition-transform"
+            >
               <User className="w-6 h-6 text-white" />
-            </div>
+            </button>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-white/15 active:bg-white/25 flex items-center justify-center"
@@ -143,34 +167,38 @@ export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
             </div>
           </div>
 
-          <span className="mt-5 px-2 text-[11px] text-neutral-400 tracking-tight block" style={{ fontWeight: 600 }}>
-            개발자 설정
-          </span>
-          <div className="mt-2 rounded-[14px] bg-neutral-50 overflow-hidden">
-            <div className="px-3.5 py-3 flex items-center gap-3">
-              <Database className="w-4 h-4" style={{ color: "var(--brand-green)" }} />
-              <div className="flex-1 min-w-0">
-                <span className="text-[14px] text-neutral-900 tracking-tight block" style={{ fontWeight: 500 }}>
-                  샘플 데이터 표시
-                </span>
-                <span className="text-[10.5px] text-neutral-400 tracking-tight">
-                  {mockData ? "백엔드 연결 전 미리보기 중" : "데이터 없음 상태 확인 중"}
-                </span>
+          {devMode && (
+            <>
+              <span className="mt-5 px-2 text-[11px] text-neutral-400 tracking-tight block" style={{ fontWeight: 600 }}>
+                개발자 설정
+              </span>
+              <div className="mt-2 rounded-[14px] bg-neutral-50 overflow-hidden">
+                <div className="px-3.5 py-3 flex items-center gap-3">
+                  <Database className="w-4 h-4" style={{ color: "var(--brand-green)" }} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[14px] text-neutral-900 tracking-tight block" style={{ fontWeight: 500 }}>
+                      샘플 데이터 표시
+                    </span>
+                    <span className="text-[10.5px] text-neutral-400 tracking-tight">
+                      {mockData ? "백엔드 연결 전 미리보기 중" : "데이터 없음 상태 확인 중"}
+                    </span>
+                  </div>
+                  <button
+                    role="switch"
+                    aria-checked={mockData}
+                    onClick={() => setMockData(!mockData)}
+                    className="relative w-[46px] h-[28px] rounded-full transition-colors flex-shrink-0"
+                    style={{ background: mockData ? "var(--brand-green)" : "#d4d4d4" }}
+                  >
+                    <span
+                      className="absolute top-[2px] left-[2px] w-6 h-6 rounded-full bg-white transition-transform"
+                      style={{ transform: mockData ? "translateX(18px)" : "translateX(0)" }}
+                    />
+                  </button>
+                </div>
               </div>
-              <button
-                role="switch"
-                aria-checked={mockData}
-                onClick={() => setMockData(!mockData)}
-                className="relative w-[46px] h-[28px] rounded-full transition-colors flex-shrink-0"
-                style={{ background: mockData ? "var(--brand-green)" : "#d4d4d4" }}
-              >
-                <span
-                  className="absolute top-[2px] left-[2px] w-6 h-6 rounded-full bg-white transition-transform"
-                  style={{ transform: mockData ? "translateX(18px)" : "translateX(0)" }}
-                />
-              </button>
-            </div>
-          </div>
+            </>
+          )}
 
           <button
             onClick={handleLogout}
