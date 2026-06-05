@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, User, Map as MapIcon, Moon, Type, ChevronRight, LogOut, Database } from "lucide-react";
+import { X, User, Map as MapIcon, Moon, Type, ChevronRight, LogOut, Database, Bell } from "lucide-react";
 import { useApp, FONT_LABELS, FontScale } from "../context";
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
-  const { dark, setDark, fontScale, setFontScale, mockData, setMockData, user, parcels, setStage } = useApp();
+  const { dark, setDark, fontScale, setFontScale, mockData, setMockData, user, parcels, setStage, notificationRadius, setNotificationRadius } = useApp();
   const [devMode, setDevMode] = useState(false);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -106,6 +106,47 @@ export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
                 onEditParcels();
               }}
             />
+          </div>
+
+          <span className="mt-5 px-2 text-[11px] text-neutral-400 tracking-tight block" style={{ fontWeight: 600 }}>
+            알림 설정
+          </span>
+          <div className="mt-2 rounded-[14px] bg-neutral-50 overflow-hidden p-3.5">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <Bell className="w-4 h-4" style={{ color: "var(--brand-green)" }} />
+              <div className="flex-1">
+                <span className="text-[14px] text-neutral-900 tracking-tight block" style={{ fontWeight: 500 }}>
+                  주변 필지 알림 반경
+                </span>
+                <span className="text-[10.5px] text-neutral-400 tracking-tight">
+                  인근 병해 발생 시 알림
+                </span>
+              </div>
+              <div className="flex items-baseline gap-0.5">
+                <span className="text-[18px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 700 }}>
+                  {notificationRadius}
+                </span>
+                <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                  km
+                </span>
+              </div>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={notificationRadius}
+              onChange={(e) => setNotificationRadius(Number(e.target.value))}
+              className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 1) / 19) * 100}%, #d4d4d4 ${((notificationRadius - 1) / 19) * 100}%, #d4d4d4 100%)`
+              }}
+            />
+            <div className="flex justify-between mt-1">
+              <span className="text-[9px] text-neutral-400 tracking-tight">1km</span>
+              <span className="text-[9px] text-neutral-400 tracking-tight">20km</span>
+            </div>
           </div>
 
           <span className="mt-5 px-2 text-[11px] text-neutral-400 tracking-tight block" style={{ fontWeight: 600 }}>

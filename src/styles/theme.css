@@ -190,4 +190,33 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+
+  /* Range slider styling */
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand-green);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand-green);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  input[type="range"]::-webkit-slider-thumb:active {
+    transform: scale(1.15);
+  }
+
+  input[type="range"]::-moz-range-thumb:active {
+    transform: scale(1.15);
+  }
 }

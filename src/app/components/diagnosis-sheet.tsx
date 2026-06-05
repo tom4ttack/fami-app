@@ -73,10 +73,6 @@ export function DiagnosisSheet({ open, onClose, zone = DEFAULT_ZONE }: Props) {
         <div className="px-5 pb-5 overflow-y-auto" style={{ height: "calc(100% - 76px)" }}>
           {/* Photo */}
           <div className="relative rounded-[16px] overflow-hidden aspect-[16/10] bg-neutral-200">
-            <svg viewBox="0 0 400 250" className="absolute inset-0 w-full h-full pointer-events-none">
-              <circle cx="135" cy="120" r="28" fill={zone.color} fillOpacity="0.35" stroke={zone.color} strokeWidth="1.5" strokeDasharray="3 3" />
-              <circle cx="240" cy="170" r="22" fill={zone.color} fillOpacity="0.35" stroke={zone.color} strokeWidth="1.5" strokeDasharray="3 3" />
-            </svg>
             <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center justify-center">
               <span className="text-[10px] text-neutral-700 tracking-tight text-center">2026.05.16 {zone.time}</span>
             </div>

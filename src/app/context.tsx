@@ -35,6 +35,9 @@ type Ctx = {
 
   parcels: Parcel[];
   setParcels: (p: Parcel[]) => void;
+
+  notificationRadius: number;
+  setNotificationRadius: (r: number) => void;
 };
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -67,6 +70,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>(1);
   const [mockData, setMockData] = useState(true);
+  const [notificationRadius, setNotificationRadius] = useState(5);
   const [user, setUser] = useState<User>({
     name: "",
     phone: "",
@@ -77,7 +81,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppCtx.Provider
-      value={{ stage, setStage, dark, setDark, fontScale, setFontScale, mockData, setMockData, user, setUser, parcels, setParcels }}
+      value={{
+        stage, setStage,
+        dark, setDark,
+        fontScale, setFontScale,
+        mockData, setMockData,
+        user, setUser,
+        parcels, setParcels,
+        notificationRadius, setNotificationRadius
+      }}
     >
       {children}
     </AppCtx.Provider>

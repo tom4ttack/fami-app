@@ -5,6 +5,11 @@ import { DiagZone } from "../components/diagnosis-sheet";
 import { EmptyParcelList, EmptyDiagHistory } from "../components/empty-states";
 import { useApp } from "../context";
 
+const FARM_DB = [
+  { name: '충청남도 청양군 청양읍 적누리', pnu: '4479025025103890002' },
+  { name: '테스트용 B구역 고추밭', pnu: '1234567890123456789' },
+];
+
 type ParcelState = "danger" | "warn" | "safe";
 
 type Parcel = {
@@ -22,11 +27,11 @@ type Parcel = {
 const PARCELS: Parcel[] = [
   { id: "A-1", state: "safe",   name: "A-1 구역", area: "310㎡", crop: "청양고추", note: "안전",         d: "M28,32 L162,28 L168,108 L34,116 Z",    labelX: 92,  labelY: 76  },
   { id: "A-2", state: "safe",   name: "A-2 구역", area: "295㎡", crop: "청양고추", note: "안전",         d: "M180,28 L308,32 L302,112 L172,108 Z",  labelX: 238, labelY: 76  },
-  { id: "A-3", state: "warn",   name: "A-3 구역", area: "280㎡", crop: "청양고추", note: "흰가루병 주의", d: "M316,34 L342,36 L340,114 L308,114 Z",  labelX: 325, labelY: 80  },
+  { id: "A-3", state: "warn",   name: "A-3 구역", area: "280㎡", crop: "청양고추", note: "탄저병 의심",  d: "M316,34 L342,36 L340,114 L308,114 Z",  labelX: 325, labelY: 80  },
   { id: "B-3", state: "danger", name: "B-3 구역", area: "330㎡", crop: "청양고추", note: "탄저병",       d: "M30,130 L168,124 L176,236 L40,246 Z",  labelX: 100, labelY: 188 },
   { id: "B-4", state: "danger", name: "B-4 구역", area: "320㎡", crop: "청양고추", note: "탄저병 의심",  d: "M188,124 L306,128 L300,238 L180,234 Z", labelX: 244, labelY: 188 },
   { id: "B-5", state: "safe",   name: "B-5 구역", area: "300㎡", crop: "청양고추", note: "안전",         d: "M318,130 L342,132 L338,240 L310,240 Z", labelX: 326, labelY: 188 },
-  { id: "C-1", state: "warn",   name: "C-1 구역", area: "260㎡", crop: "청양고추", note: "흰가루병 의심", d: "M30,258 L130,254 L134,330 L34,334 Z",  labelX: 82,  labelY: 298 },
+  { id: "C-1", state: "warn",   name: "C-1 구역", area: "260㎡", crop: "청양고추", note: "탄저병 의심",  d: "M30,258 L130,254 L134,330 L34,334 Z",  labelX: 82,  labelY: 298 },
 ];
 
 const TONE: Record<ParcelState, { color: string; label: string; emoji: string }> = {
@@ -191,7 +196,7 @@ function ZoomedMap({ parcel, state }: { parcel: Parcel; state: ParcelState }) {
           </circle>
         )}
       </svg>
-      <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md">
+      <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center">
         <span className="text-[10px] text-neutral-700 tracking-tight">미니맵 · 확대</span>
       </div>
     </div>
@@ -382,6 +387,28 @@ type ParcelDetailsProps = {
   onInitialConsumed?: () => void;
   onOpenDiagSheet: (zone: DiagZone) => void;
 };
+
+const fetchFarmDataFromAWS = async (searchName: string) => {
+    if (!searchName.trim()) return;
+
+    // 1. 장부에서 사용자가 검색한 지역명으로 PNU 코드 찾기
+    const targetFarm = FARM_DB.find((farm) => farm.name.includes(searchName));
+    
+    // 매칭되는 지역이 없으면 아무 작동 없이 조용히 함수 종료
+    if (!targetFarm) return; 
+
+    // 2. 매칭된 PNU 코드를 AWS 서버로 쏴서 데이터 받아오기
+    try {
+      // 🚨 나중에 팀원이 서버 주소 주면 주석(//) 풀고 진짜 주소로 바꾸기!
+      // const response = await fetch(`https://api.fami-capstone.com/farm?pnu=${targetFarm.pnu}`);
+      // const geoJsonData = await response.json();
+      
+      // 받아온 데이터(geoJsonData)를 지도 컴포넌트로 넘겨주는 상태(State) 업데이트 로직을 이 자리에 추가하면 됩니다.
+      
+    } catch (error) {
+      console.error("AWS 통신 에러:", error);
+    }
+  };
 
 export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiagSheet }: ParcelDetailsProps) {
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);

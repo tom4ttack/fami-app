@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, User as UserIcon, Map as MapIcon, Search, Check, X, Sprout, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, User as UserIcon, Map as MapIcon, Search, Check, X, Sprout, ChevronDown, Bell } from "lucide-react";
 import { useApp, Parcel } from "../context";
 
-const CROPS = ["청양고추", "오이", "토마토", "딸기", "참외", "수박", "감자", "고구마", "상추", "깻잎", "배추", "무"];
+const FARM_DB = [
+  { name: '충청남도 청양군 청양읍 적누리', pnu: '4479025025103890002' },
+  { name: '테스트용 B구역 고추밭', pnu: '1234567890123456789' },
+];
+
+const CROPS = ["고추", "배추", "무"];
 
 type MockZone = { id: string; area: string; d: string; lx: number; ly: number };
 
@@ -18,8 +23,8 @@ const MOCK_ZONES: MockZone[] = [
 type ZoneCrop = Record<string, string>;
 
 export function OnboardingScreen() {
-  const { user, setUser, parcels, setParcels, setStage } = useApp();
-  const [step, setStep] = useState<1 | 2>(1);
+  const { user, setUser, parcels, setParcels, setStage, notificationRadius, setNotificationRadius } = useApp();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
   const [name, setName] = useState(user.name);
@@ -32,18 +37,44 @@ export function OnboardingScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Step 2 — crops
-  const [globalCrop, setGlobalCrop] = useState("청양고추");
+  const [globalCrop, setGlobalCrop] = useState("고추");
   const [perZone, setPerZone] = useState(false);
   const [zoneCrops, setZoneCrops] = useState<ZoneCrop>({});
   const [expandedZone, setExpandedZone] = useState<string | null>(null);
 
-  const handleLoad = () => {
-    if (!address.trim()) return;
-    setLoadState("loading");
-    setTimeout(() => {
+ const handleLoad = async () => {
+    // 🌟 1. 검색어 앞뒤의 쓸데없는 스페이스바(공백)를 깔끔하게 청소해 줍니다.
+    const cleanAddress = address.trim();
+
+    if (!cleanAddress) return;
+
+    // 🌟 2. 청소된 검색어(cleanAddress)로 장부를 뒤집니다.
+    const targetFarm = FARM_DB.find((farm) => farm.name.includes(cleanAddress));
+
+    if (!targetFarm) {
+      alert(`앗! '${cleanAddress}'에 대한 데이터가 장부에 없습니다.`);
+      return; 
+    }
+
+    console.log(`✅ 매칭 성공! AWS로 보낼 PNU 코드: ${targetFarm.pnu}`);
+    setLoadState("loading"); 
+
+    try {
+      // (나중에 팀원이 서버 주소 주면 아래 주석 해제)
+      // const response = await fetch(`https://api.fami-capstone.com/farm?pnu=${targetFarm.pnu}`);
+      // const geoJsonData = await response.json();
+      
+      await new Promise((resolve) => setTimeout(resolve, 1400));
+      console.log("🚀 AWS에서 지도 데이터 받아오기 완료!");
+
       setLoadState("done");
-      setSelectedIds(new Set(MOCK_ZONES.map((z) => z.id)));
-    }, 1400);
+      setSelectedIds(new Set(MOCK_ZONES.map((z) => z.id))); 
+      
+    } catch (error) {
+      console.error("AWS 통신 에러:", error);
+      alert("서버와 통신 중 오류가 발생했습니다.");
+      setLoadState("idle");
+    }
   };
 
   const toggleZone = (id: string) => {
@@ -56,7 +87,7 @@ export function OnboardingScreen() {
 
   const getCrop = (id: string) => (perZone ? zoneCrops[id] ?? globalCrop : globalCrop);
 
-  const finish = () => {
+  const finishStep2 = () => {
     setUser({ ...user, name, phone, region });
     const list: Parcel[] = MOCK_ZONES.filter((z) => selectedIds.has(z.id)).map((z) => ({
       id: z.id,
@@ -65,6 +96,10 @@ export function OnboardingScreen() {
       crop: getCrop(z.id),
     }));
     setParcels(list);
+    setStep(3);
+  };
+
+  const finish = () => {
     setStage("app");
   };
 
@@ -72,9 +107,9 @@ export function OnboardingScreen() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="px-5 pt-12 pb-3 flex items-center gap-2">
-        {step === 2 && (
+        {(step === 2 || step === 3) && (
           <button
-            onClick={() => setStep(1)}
+            onClick={() => setStep((step - 1) as 1 | 2 | 3)}
             className="w-9 h-9 -ml-1.5 rounded-full active:bg-neutral-200/60 flex items-center justify-center"
           >
             <ChevronLeft className="w-5 h-5 text-neutral-900" />
@@ -82,24 +117,24 @@ export function OnboardingScreen() {
         )}
         <div className="flex-1">
           <span className="text-[11.5px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 700 }}>
-            첫 설정 · {step}/2
+            첫 설정 · {step}/3
           </span>
           <h1
             className="text-neutral-900 tracking-tight"
             style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.2 }}
           >
-            {step === 1 ? "사용자 정보를 입력하세요" : "관리할 필지를 등록하세요"}
+            {step === 1 && "사용자 정보를 입력하세요"}
+            {step === 2 && "관리할 필지를 등록하세요"}
+            {step === 3 && "주변 필지 알림 반경 설정"}
           </h1>
         </div>
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: "color-mix(in srgb, var(--brand-green) 10%, transparent)" }}
         >
-          {step === 1 ? (
-            <UserIcon className="w-5 h-5" style={{ color: "var(--brand-green)" }} />
-          ) : (
-            <MapIcon className="w-5 h-5" style={{ color: "var(--brand-green)" }} />
-          )}
+          {step === 1 && <UserIcon className="w-5 h-5" style={{ color: "var(--brand-green)" }} />}
+          {step === 2 && <MapIcon className="w-5 h-5" style={{ color: "var(--brand-green)" }} />}
+          {step === 3 && <Bell className="w-5 h-5" style={{ color: "var(--brand-green)" }} />}
         </div>
       </div>
 
@@ -108,7 +143,7 @@ export function OnboardingScreen() {
         <div className="h-1 rounded-full bg-neutral-200 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ width: step === 1 ? "50%" : "100%", background: "#E9B44C" }}
+            style={{ width: step === 1 ? "33.33%" : step === 2 ? "66.66%" : "100%", background: "#E9B44C" }}
           />
         </div>
       </div>
@@ -127,6 +162,173 @@ export function OnboardingScreen() {
                   입력 정보는 언제든 메뉴에서 수정 가능합니다.
                 </span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-3">
+            <div className="rounded-[16px] bg-white p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Bell className="w-5 h-5" style={{ color: "var(--brand-green)" }} />
+                <div>
+                  <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                    주변 필지 알림 설정
+                  </span>
+                  <p className="text-[14px] text-neutral-900 tracking-tight" style={{ fontWeight: 700 }}>
+                    병해 발생 시 알림 받을 반경
+                  </p>
+                </div>
+              </div>
+
+              {/* Map with radius visualization */}
+              <div className="relative w-full h-[240px] rounded-[13px] overflow-hidden bg-gradient-to-br from-[#eef2ea] via-[#e3ead9] to-[#d4dfc5]">
+                <svg className="absolute inset-0 w-full h-full opacity-20">
+                  <defs>
+                    <pattern id="radiusGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="var(--brand-green)" strokeWidth="0.4" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#radiusGrid)" />
+                </svg>
+                <svg viewBox="0 0 360 240" className="absolute inset-0 w-full h-full">
+                  {/* Selected parcels */}
+                  {MOCK_ZONES.filter((z) => selectedIds.has(z.id)).map((z) => (
+                    <g key={z.id}>
+                      <path
+                        d={z.d}
+                        fill="var(--brand-green)"
+                        fillOpacity={0.45}
+                        stroke="var(--brand-green)"
+                        strokeWidth={1.8}
+                        strokeLinejoin="round"
+                      />
+                      <text
+                        x={z.lx} y={z.ly}
+                        fontSize={10}
+                        fill="#3a5235"
+                        fontWeight={800}
+                        textAnchor="middle"
+                      >
+                        {z.id}
+                      </text>
+                    </g>
+                  ))}
+
+                  {/* Notification radius circle */}
+                  <g>
+                    {/* Outer glow ring */}
+                    <circle
+                      cx="180"
+                      cy="120"
+                      r={notificationRadius * 5 + 4}
+                      fill="none"
+                      stroke="#E9B44C"
+                      strokeWidth="1"
+                      strokeOpacity="0.3"
+                    />
+                    {/* Main radius fill */}
+                    <circle
+                      cx="180"
+                      cy="120"
+                      r={notificationRadius * 5}
+                      fill="rgba(233, 180, 76, 0.22)"
+                      stroke="none"
+                    />
+                    {/* Dashed border */}
+                    <circle
+                      cx="180"
+                      cy="120"
+                      r={notificationRadius * 5}
+                      fill="none"
+                      stroke="#E9B44C"
+                      strokeWidth="2.5"
+                      strokeDasharray="8 5"
+                    >
+                      <animate attributeName="stroke-opacity" values="1;0.55;1" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    {/* Center dot with ring */}
+                    <circle cx="180" cy="120" r="10" fill="#E9B44C" fillOpacity="0.25" />
+                    <circle cx="180" cy="120" r="6" fill="#E9B44C" />
+                    <circle cx="180" cy="120" r="2.5" fill="white" />
+                  </g>
+                </svg>
+                <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/85 backdrop-blur-md flex items-center">
+                  <span className="text-[10px] text-neutral-700 tracking-tight" style={{ fontWeight: 600 }}>
+                    🔔 알림 반경: {notificationRadius}km
+                  </span>
+                </div>
+                <div className="absolute bottom-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md flex items-center">
+                  <span className="text-[9px] text-neutral-600 tracking-tight">내 필지 중심</span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-[14px] bg-neutral-50 p-3.5">
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-[12px] text-neutral-600 tracking-tight" style={{ fontWeight: 600 }}>
+                    알림 반경 조절
+                  </span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-[28px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+                      {notificationRadius}
+                    </span>
+                    <span className="text-[13px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                      km
+                    </span>
+                  </div>
+                </div>
+
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  step="1"
+                  value={notificationRadius}
+                  onChange={(e) => setNotificationRadius(Number(e.target.value))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 100%)`
+                  }}
+                />
+
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-[10px] text-neutral-400 tracking-tight">1km</span>
+                  <span className="text-[10px] text-neutral-400 tracking-tight">20km</span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-[12px] p-3" style={{ background: "rgba(233,180,76,0.10)" }}>
+                <p className="text-[11.5px] text-neutral-700 tracking-tight" style={{ lineHeight: 1.5 }}>
+                  내 필지에서 <span style={{ color: "#8a6620", fontWeight: 700 }}>{notificationRadius}km 이내</span>의 다른 농가 필지에서 병해가 검출되면 실시간 알림을 받습니다. 인근 병해 확산 패턴을 미리 파악하세요.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[16px] bg-white p-3.5">
+              <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                추천 설정
+              </span>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {[3, 5, 10].map((km) => (
+                  <button
+                    key={km}
+                    onClick={() => setNotificationRadius(km)}
+                    className="py-2.5 rounded-[11px] transition-all active:scale-[0.97]"
+                    style={
+                      notificationRadius === km
+                        ? { background: "var(--brand-green)", color: "#fff" }
+                        : { background: "#f0f0ee", color: "#555" }
+                    }
+                  >
+                    <span className="text-[13px] tracking-tight" style={{ fontWeight: 700 }}>
+                      {km}km
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-neutral-400 tracking-tight">
+                • 3km: 인접 농가만 • 5km: 같은 마을권 • 10km: 광역 모니터링
+              </p>
             </div>
           </div>
         )}
@@ -223,8 +425,8 @@ export function OnboardingScreen() {
                         );
                       })}
                     </svg>
-                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md">
-                      <span className="text-[9.5px] text-neutral-600 tracking-tight">{address}</span>
+                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md flex items-center" style={{ lineHeight: 1 }}>
+                      <span className="text-[9.5px] text-neutral-600 tracking-tight" style={{ lineHeight: 1 }}>{address}</span>
                     </div>
                   </div>
                 </div>
@@ -335,7 +537,7 @@ export function OnboardingScreen() {
 
       {/* Footer */}
       <div className="px-5 pb-7 pt-2">
-        {step === 1 ? (
+        {step === 1 && (
           <button
             onClick={() => setStep(2)}
             disabled={!name.trim() || !region.trim()}
@@ -344,11 +546,21 @@ export function OnboardingScreen() {
           >
             다음 <ChevronRight className="w-4 h-4" />
           </button>
-        ) : (
+        )}
+        {step === 2 && (
           <button
-            onClick={finish}
+            onClick={finishStep2}
             disabled={selectedIds.size === 0 || loadState !== "done"}
             className="w-full h-[52px] rounded-[16px] flex items-center justify-center gap-2 text-white tracking-tight active:scale-[0.98] transition-transform disabled:opacity-40"
+            style={{ background: "var(--brand-green)", fontSize: 15, fontWeight: 700 }}
+          >
+            다음 <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+        {step === 3 && (
+          <button
+            onClick={finish}
+            className="w-full h-[52px] rounded-[16px] flex items-center justify-center gap-2 text-white tracking-tight active:scale-[0.98] transition-transform"
             style={{ background: "var(--brand-green)", fontSize: 15, fontWeight: 700 }}
           >
             <Check className="w-4 h-4" />
@@ -362,12 +574,12 @@ export function OnboardingScreen() {
 
 function CropPicker({ selected, onChange }: { selected: string; onChange: (c: string) => void }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="grid grid-cols-3 gap-2">
       {CROPS.map((c) => (
         <button
           key={c}
           onClick={() => onChange(c)}
-          className="px-2.5 py-1 rounded-full text-[12px] tracking-tight transition-all active:scale-[0.96]"
+          className="py-2.5 rounded-[11px] text-[13px] tracking-tight transition-all active:scale-[0.96]"
           style={
             selected === c
               ? { background: "var(--brand-green)", color: "#fff", fontWeight: 700 }

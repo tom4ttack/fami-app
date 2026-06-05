@@ -84,7 +84,7 @@ export function FarmMap({ onZoneClick, onZoneSelect }: Props) {
           <span className="text-[10px] text-neutral-700">위험</span>
         </div>
       </div>
-      <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-white/75 backdrop-blur-md">
+      <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-white/75 backdrop-blur-md flex items-center">
         <span className="text-[10px] text-neutral-700 tracking-tight">팜맵 · 6 필지</span>
       </div>
     </div>
