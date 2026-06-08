@@ -27,10 +27,7 @@ const DATA: Disease[] = [
         time: "09:38", treat: "1-2일 내 방제 권장",
         disease: "탄저병", diseaseEn: "Anthracnose", color: "#CF4F0E",
         drugs: [
-          { name: "안트라콜",   primary: true, reason: "탄저병 전문 예방·치료제. 잔류효과 길고 우천 전 살포 효과적" },
-          { name: "다이센엠-45", primary: true, reason: "접촉성 살균, 넓은 병해 스펙트럼. 저항성 발현 낮음" },
-          { name: "캡타폴",              reason: "감염 초기 치료에 적합. 병반 확산 억제" },
-          { name: "프로피네브",           reason: "예방 위주 살포용. 다른 계통과 교호 사용 권장" },
+          { name: "카브리오 에이(수화제)", primary: true, reason: "물 20L당 10g 희석하여 발병 초 10일 간격으로 살포. 장마철에는 7일 간격으로 살포" },
         ],
       },
       {
@@ -39,9 +36,7 @@ const DATA: Disease[] = [
         time: "09:12", treat: "3일 내 예방 살포",
         disease: "탄저병", diseaseEn: "Anthracnose", color: "#CF4F0E",
         drugs: [
-          { name: "안트라콜", primary: true, reason: "탄저병 예방에 최적. 초기 병반 억제 효과" },
-          { name: "다이센엠-45", primary: true, reason: "광범위 살균. 저항성 낮아 초기 처리에 적합" },
-          { name: "프로피네브",           reason: "예방 살포 전용. 잎 표면 보호막 형성" },
+          { name: "카브리오 에이(수화제)", primary: true, reason: "물 20L당 10g 희석하여 발병 초 10일 간격으로 살포. 장마철에는 7일 간격으로 살포" },
         ],
       },
       {
@@ -50,27 +45,33 @@ const DATA: Disease[] = [
         time: "08:47", treat: "관찰 후 판단",
         disease: "탄저병", diseaseEn: "Anthracnose", color: "#CF4F0E",
         drugs: [
-          { name: "안트라콜", primary: true, reason: "의심 단계 예방 처리. 확산 전 조기 차단" },
-          { name: "캡타폴",              reason: "낮은 정확도 감안, 예방적 관찰 살포 권장" },
+          { name: "카브리오 에이(수화제)", primary: true, reason: "물 20L당 10g 희석하여 발병 초 10일 간격으로 살포. 장마철에는 7일 간격으로 살포" },
         ],
       },
     ],
   },
   {
-    name: "흰가루병",
-    en: "Powdery Mildew",
-    count: 1,
+    name: "무름병",
+    en: "Soft Rot",
+    count: 2,
     tone: "warn",
     zones: [
       {
         zone: "A-3", accuracy: 71, area: 4,
         photo: "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=400&q=80",
-        time: "10:03", treat: "1주 내 예방 살포",
-        disease: "흰가루병", diseaseEn: "Powdery Mildew", color: "#E9B44C",
+        time: "10:03", treat: "1주 내 방제 권장",
+        disease: "무름병 (배추)", diseaseEn: "Soft Rot", color: "#E9B44C",
         drugs: [
-          { name: "훼나리몰", primary: true, reason: "흰가루병 전문 내흡수성 살균제. 발생 초기 치료 효과" },
-          { name: "트리플루미졸", primary: true, reason: "예방 및 치료 겸용. 이삭도 보호 가능" },
-          { name: "황수화제",              reason: "유기농 대체제. 환경 부담 적고 예방 효과" },
+          { name: "방범대(수화제)", primary: true, reason: "물 20L당 20g을 희석하여 발병 초기 10일 간격으로 살포. 수확 14일 전까지 3회 살포" },
+        ],
+      },
+      {
+        zone: "B-5", accuracy: 68, area: 3,
+        photo: "https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=400&q=80",
+        time: "10:21", treat: "1주 내 방제 권장",
+        disease: "무름병 (무)", diseaseEn: "Soft Rot", color: "#E9B44C",
+        drugs: [
+          { name: "아그리마이신(수화제)", primary: true, reason: "물 20L당 10g을 희석하여 발병 초기 7일 간격으로 살포" },
         ],
       },
     ],

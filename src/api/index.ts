@@ -4,3 +4,5 @@ export { userService } from "./services/userService";
 export { parcelService } from "./services/parcelService";
 export { diagnosisService } from "./services/diagnosisService";
 export { notificationService } from "./services/notificationService";
+export { mapService, getMockPnuData } from "./services/mapService";
+export type { LatLng, PnuParcelData } from "./services/mapService";

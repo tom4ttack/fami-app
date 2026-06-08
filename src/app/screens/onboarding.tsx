@@ -1,29 +1,18 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, User as UserIcon, Map as MapIcon, Search, Check, X, Sprout, ChevronDown, Bell } from "lucide-react";
+import { ChevronLeft, ChevronRight, User as UserIcon, Map as MapIcon, Search, Check, Sprout, ChevronDown, Bell, AlertCircle, MapPinOff } from "lucide-react";
 import { useApp, Parcel } from "../context";
-
-const FARM_DB = [
-  { name: '충청남도 청양군 청양읍 적누리', pnu: '4479025025103890002' },
-  { name: '테스트용 B구역 고추밭', pnu: '1234567890123456789' },
-];
+import { KakaoMap, ParcelPolygon } from "../components/kakao-map";
+import { LatLng, MAP_CENTER } from "../data/parcel-coords";
+import { searchFarmByAddress } from "../data/farm-db";
+import { mapService, getMockPnuData, PnuParcelData } from "../../api/services/mapService";
 
 const CROPS = ["고추", "배추", "무"];
 
-type MockZone = { id: string; area: string; d: string; lx: number; ly: number };
-
-const MOCK_ZONES: MockZone[] = [
-  { id: "A-1", area: "310", d: "M22,24 L130,20 L138,80 L28,88 Z",     lx: 75,  ly: 58  },
-  { id: "A-2", area: "295", d: "M150,22 L256,30 L246,84 L142,80 Z",    lx: 195, ly: 58  },
-  { id: "A-3", area: "280", d: "M266,32 L340,42 L334,102 L258,90 Z",   lx: 295, ly: 68  },
-  { id: "B-3", area: "330", d: "M30,100 L142,94 L150,170 L38,178 Z",   lx: 88,  ly: 136 },
-  { id: "B-4", area: "320", d: "M160,94 L268,104 L260,176 L156,168 Z", lx: 208, ly: 138 },
-  { id: "B-5", area: "300", d: "M278,114 L340,118 L334,182 L270,180 Z",lx: 302, ly: 152 },
-];
-
 type ZoneCrop = Record<string, string>;
+type LoadState = "idle" | "loading" | "done" | "notfound" | "error";
 
 export function OnboardingScreen() {
-  const { user, setUser, parcels, setParcels, setStage, notificationRadius, setNotificationRadius } = useApp();
+  const { user, setUser, setParcels, setStage, notificationRadius, setNotificationRadius } = useApp();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
@@ -31,10 +20,13 @@ export function OnboardingScreen() {
   const [phone, setPhone] = useState(user.phone);
   const [region, setRegion] = useState(user.region);
 
-  // Step 2 — address
+  // Step 2 — address & PNU
   const [address, setAddress] = useState("");
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "done">("idle");
+  const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [fetchedZones, setFetchedZones] = useState<PnuParcelData[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [resolvedCenter, setResolvedCenter] = useState<LatLng>(MAP_CENTER);
 
   // Step 2 — crops
   const [globalCrop, setGlobalCrop] = useState("고추");
@@ -42,38 +34,43 @@ export function OnboardingScreen() {
   const [zoneCrops, setZoneCrops] = useState<ZoneCrop>({});
   const [expandedZone, setExpandedZone] = useState<string | null>(null);
 
- const handleLoad = async () => {
-    // 🌟 1. 검색어 앞뒤의 쓸데없는 스페이스바(공백)를 깔끔하게 청소해 줍니다.
-    const cleanAddress = address.trim();
+  const handleLoad = async () => {
+    if (!address.trim()) return;
+    setLoadState("loading");
+    setLoadError(null);
+    setFetchedZones([]);
+    setSelectedIds(new Set());
 
-    if (!cleanAddress) return;
-
-    // 🌟 2. 청소된 검색어(cleanAddress)로 장부를 뒤집니다.
-    const targetFarm = FARM_DB.find((farm) => farm.name.includes(cleanAddress));
-
-    if (!targetFarm) {
-      alert(`앗! '${cleanAddress}'에 대한 데이터가 장부에 없습니다.`);
-      return; 
+    // 1. FARM_DB에서 PNU 매칭
+    const matches = searchFarmByAddress(address.trim());
+    if (matches.length === 0) {
+      setLoadState("notfound");
+      return;
     }
 
-    console.log(`✅ 매칭 성공! AWS로 보낼 PNU 코드: ${targetFarm.pnu}`);
-    setLoadState("loading"); 
-
+    // 2. 각 PNU에 대해 AWS 서버에서 좌표 조회
     try {
-      // (나중에 팀원이 서버 주소 주면 아래 주석 해제)
-      // const response = await fetch(`https://api.fami-capstone.com/farm?pnu=${targetFarm.pnu}`);
-      // const geoJsonData = await response.json();
-      
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-      console.log("🚀 AWS에서 지도 데이터 받아오기 완료!");
+      const zones: PnuParcelData[] = await Promise.all(
+        matches.map(async (entry) => {
+          try {
+            const res = await mapService.getCoordinatesByPnu(entry.pnu);
+            return res.data;
+          } catch {
+            // 백엔드 미연결 시 mock 데이터 사용
+            const mock = getMockPnuData(entry.pnu);
+            if (mock) return mock;
+            throw new Error(`PNU ${entry.pnu} 좌표 조회 실패`);
+          }
+        }),
+      );
 
+      setFetchedZones(zones);
+      setSelectedIds(new Set(zones.map((z) => z.id)));
+      if (zones[0]?.center) setResolvedCenter(zones[0].center);
       setLoadState("done");
-      setSelectedIds(new Set(MOCK_ZONES.map((z) => z.id))); 
-      
-    } catch (error) {
-      console.error("AWS 통신 에러:", error);
-      alert("서버와 통신 중 오류가 발생했습니다.");
-      setLoadState("idle");
+    } catch (err) {
+      setLoadError("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setLoadState("error");
     }
   };
 
@@ -89,19 +86,38 @@ export function OnboardingScreen() {
 
   const finishStep2 = () => {
     setUser({ ...user, name, phone, region });
-    const list: Parcel[] = MOCK_ZONES.filter((z) => selectedIds.has(z.id)).map((z) => ({
-      id: z.id,
-      name: `${z.id} 구역`,
-      area: z.area,
-      crop: getCrop(z.id),
-    }));
+    const list: Parcel[] = fetchedZones
+      .filter((z) => selectedIds.has(z.id))
+      .map((z) => ({
+        id: z.id,
+        name: z.address.split(' ').slice(-1)[0] + ' 필지',
+        area: z.area,
+        crop: getCrop(z.id),
+      }));
     setParcels(list);
     setStep(3);
   };
 
-  const finish = () => {
-    setStage("app");
-  };
+  const finish = () => setStage("app");
+
+  // KakaoMap용 파셀 배열
+  const mapParcels: ParcelPolygon[] = fetchedZones.map((z) => ({
+    id: z.id,
+    label: z.pnu.slice(-4), // PNU 끝 4자리를 라벨로 표시
+    coordinates: z.coordinates,
+    state: "safe" as const,
+    selected: selectedIds.has(z.id),
+  }));
+
+  const step3Parcels: ParcelPolygon[] = fetchedZones
+    .filter((z) => selectedIds.has(z.id))
+    .map((z) => ({
+      id: z.id,
+      label: z.pnu.slice(-4),
+      coordinates: z.coordinates,
+      state: "safe" as const,
+      selected: true,
+    }));
 
   return (
     <div className="h-full flex flex-col">
@@ -150,6 +166,8 @@ export function OnboardingScreen() {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-5 pb-4">
+
+        {/* ── STEP 1 ── */}
         {step === 1 && (
           <div className="space-y-3">
             <Field label="이름" value={name} onChange={setName} placeholder="홍길동" />
@@ -166,173 +184,7 @@ export function OnboardingScreen() {
           </div>
         )}
 
-        {step === 3 && (
-          <div className="space-y-3">
-            <div className="rounded-[16px] bg-white p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Bell className="w-5 h-5" style={{ color: "var(--brand-green)" }} />
-                <div>
-                  <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
-                    주변 필지 알림 설정
-                  </span>
-                  <p className="text-[14px] text-neutral-900 tracking-tight" style={{ fontWeight: 700 }}>
-                    병해 발생 시 알림 받을 반경
-                  </p>
-                </div>
-              </div>
-
-              {/* Map with radius visualization */}
-              <div className="relative w-full h-[240px] rounded-[13px] overflow-hidden bg-gradient-to-br from-[#eef2ea] via-[#e3ead9] to-[#d4dfc5]">
-                <svg className="absolute inset-0 w-full h-full opacity-20">
-                  <defs>
-                    <pattern id="radiusGrid" width="24" height="24" patternUnits="userSpaceOnUse">
-                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="var(--brand-green)" strokeWidth="0.4" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#radiusGrid)" />
-                </svg>
-                <svg viewBox="0 0 360 240" className="absolute inset-0 w-full h-full">
-                  {/* Selected parcels */}
-                  {MOCK_ZONES.filter((z) => selectedIds.has(z.id)).map((z) => (
-                    <g key={z.id}>
-                      <path
-                        d={z.d}
-                        fill="var(--brand-green)"
-                        fillOpacity={0.45}
-                        stroke="var(--brand-green)"
-                        strokeWidth={1.8}
-                        strokeLinejoin="round"
-                      />
-                      <text
-                        x={z.lx} y={z.ly}
-                        fontSize={10}
-                        fill="#3a5235"
-                        fontWeight={800}
-                        textAnchor="middle"
-                      >
-                        {z.id}
-                      </text>
-                    </g>
-                  ))}
-
-                  {/* Notification radius circle */}
-                  <g>
-                    {/* Outer glow ring */}
-                    <circle
-                      cx="180"
-                      cy="120"
-                      r={notificationRadius * 5 + 4}
-                      fill="none"
-                      stroke="#E9B44C"
-                      strokeWidth="1"
-                      strokeOpacity="0.3"
-                    />
-                    {/* Main radius fill */}
-                    <circle
-                      cx="180"
-                      cy="120"
-                      r={notificationRadius * 5}
-                      fill="rgba(233, 180, 76, 0.22)"
-                      stroke="none"
-                    />
-                    {/* Dashed border */}
-                    <circle
-                      cx="180"
-                      cy="120"
-                      r={notificationRadius * 5}
-                      fill="none"
-                      stroke="#E9B44C"
-                      strokeWidth="2.5"
-                      strokeDasharray="8 5"
-                    >
-                      <animate attributeName="stroke-opacity" values="1;0.55;1" dur="2s" repeatCount="indefinite" />
-                    </circle>
-                    {/* Center dot with ring */}
-                    <circle cx="180" cy="120" r="10" fill="#E9B44C" fillOpacity="0.25" />
-                    <circle cx="180" cy="120" r="6" fill="#E9B44C" />
-                    <circle cx="180" cy="120" r="2.5" fill="white" />
-                  </g>
-                </svg>
-                <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/85 backdrop-blur-md flex items-center">
-                  <span className="text-[10px] text-neutral-700 tracking-tight" style={{ fontWeight: 600 }}>
-                    🔔 알림 반경: {notificationRadius}km
-                  </span>
-                </div>
-                <div className="absolute bottom-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md flex items-center">
-                  <span className="text-[9px] text-neutral-600 tracking-tight">내 필지 중심</span>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-[14px] bg-neutral-50 p-3.5">
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="text-[12px] text-neutral-600 tracking-tight" style={{ fontWeight: 600 }}>
-                    알림 반경 조절
-                  </span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[28px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 800, letterSpacing: "-0.03em" }}>
-                      {notificationRadius}
-                    </span>
-                    <span className="text-[13px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
-                      km
-                    </span>
-                  </div>
-                </div>
-
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  step="1"
-                  value={notificationRadius}
-                  onChange={(e) => setNotificationRadius(Number(e.target.value))}
-                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 100%)`
-                  }}
-                />
-
-                <div className="flex justify-between mt-1.5">
-                  <span className="text-[10px] text-neutral-400 tracking-tight">1km</span>
-                  <span className="text-[10px] text-neutral-400 tracking-tight">20km</span>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-[12px] p-3" style={{ background: "rgba(233,180,76,0.10)" }}>
-                <p className="text-[11.5px] text-neutral-700 tracking-tight" style={{ lineHeight: 1.5 }}>
-                  내 필지에서 <span style={{ color: "#8a6620", fontWeight: 700 }}>{notificationRadius}km 이내</span>의 다른 농가 필지에서 병해가 검출되면 실시간 알림을 받습니다. 인근 병해 확산 패턴을 미리 파악하세요.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-[16px] bg-white p-3.5">
-              <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
-                추천 설정
-              </span>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {[3, 5, 10].map((km) => (
-                  <button
-                    key={km}
-                    onClick={() => setNotificationRadius(km)}
-                    className="py-2.5 rounded-[11px] transition-all active:scale-[0.97]"
-                    style={
-                      notificationRadius === km
-                        ? { background: "var(--brand-green)", color: "#fff" }
-                        : { background: "#f0f0ee", color: "#555" }
-                    }
-                  >
-                    <span className="text-[13px] tracking-tight" style={{ fontWeight: 700 }}>
-                      {km}km
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[10px] text-neutral-400 tracking-tight">
-                • 3km: 인접 농가만 • 5km: 같은 마을권 • 10km: 광역 모니터링
-              </p>
-            </div>
-          </div>
-        )}
-
+        {/* ── STEP 2 ── */}
         {step === 2 && (
           <div className="space-y-3">
             {/* Address search */}
@@ -343,9 +195,9 @@ export function OnboardingScreen() {
               <div className="mt-2 flex gap-2">
                 <input
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => { setAddress(e.target.value); if (loadState !== "idle") setLoadState("idle"); }}
                   onKeyDown={(e) => e.key === "Enter" && handleLoad()}
-                  placeholder="예: 충남 청양군 청양읍 읍내리 123"
+                  placeholder="예: 충청남도 청양군 청양읍 적누리"
                   className="flex-1 h-10 rounded-[11px] bg-neutral-50 px-3 text-[13px] text-neutral-900 tracking-tight outline-none placeholder:text-neutral-300"
                   style={{ fontWeight: 500 }}
                 />
@@ -369,63 +221,60 @@ export function OnboardingScreen() {
                 </button>
               </div>
 
-              {/* Map preview */}
-              {loadState === "loading" && (
-                <div className="mt-3 h-[180px] rounded-[13px] bg-neutral-50 flex flex-col items-center justify-center gap-2">
-                  <LoadSpinner size={20} color="var(--brand-green)" />
-                  <span className="text-[12px] text-neutral-500 tracking-tight">팜맵 데이터를 불러오는 중…</span>
+              {/* PNU 매칭 정보 */}
+              {loadState === "done" && fetchedZones.length > 0 && (
+                <div className="mt-2 flex items-center gap-1.5 px-1">
+                  <span className="text-[10px] text-neutral-400 tracking-tight">PNU</span>
+                  <span className="text-[10px] tracking-tight font-mono" style={{ color: "var(--brand-green)", fontWeight: 600 }}>
+                    {fetchedZones[0].pnu}
+                  </span>
                 </div>
               )}
 
+              {/* 로딩 */}
+              {loadState === "loading" && (
+                <div className="mt-3 h-[180px] rounded-[13px] bg-neutral-50 flex flex-col items-center justify-center gap-2">
+                  <LoadSpinner size={20} color="var(--brand-green)" />
+                  <span className="text-[12px] text-neutral-500 tracking-tight">PNU 조회 후 좌표를 불러오는 중…</span>
+                </div>
+              )}
+
+              {/* 검색 결과 없음 */}
+              {loadState === "notfound" && (
+                <div className="mt-3 h-[120px] rounded-[13px] bg-neutral-50 flex flex-col items-center justify-center gap-2">
+                  <MapPinOff className="w-6 h-6 text-neutral-300" />
+                  <p className="text-[12px] text-neutral-500 tracking-tight text-center">
+                    일치하는 필지를 찾을 수 없습니다.<br />
+                    <span className="text-[11px] text-neutral-400">주소를 더 자세히 입력해 주세요.</span>
+                  </p>
+                </div>
+              )}
+
+              {/* 서버 오류 */}
+              {loadState === "error" && (
+                <div className="mt-3 rounded-[13px] bg-red-50 p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11.5px] text-red-600 tracking-tight" style={{ lineHeight: 1.5 }}>
+                    {loadError}
+                  </p>
+                </div>
+              )}
+
+              {/* 지도 + 필지 선택 */}
               {loadState === "done" && (
                 <div className="mt-3">
                   <p className="text-[10.5px] text-neutral-500 tracking-tight mb-1.5">
-                    구역을 탭하여 선택/해제하세요 · {selectedIds.size}/{MOCK_ZONES.length}개 선택됨
+                    필지를 탭하여 선택/해제하세요 · {selectedIds.size}/{fetchedZones.length}개 선택됨
                   </p>
-                  <div className="relative w-full h-[180px] rounded-[13px] overflow-hidden bg-gradient-to-br from-[#eef2ea] via-[#e3ead9] to-[#d4dfc5]">
-                    <svg className="absolute inset-0 w-full h-full opacity-20">
-                      <defs>
-                        <pattern id="obGrid" width="24" height="24" patternUnits="userSpaceOnUse">
-                          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="var(--brand-green)" strokeWidth="0.4" />
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#obGrid)" />
-                    </svg>
-                    <svg viewBox="0 0 360 200" className="absolute inset-0 w-full h-full">
-                      {MOCK_ZONES.map((z) => {
-                        const sel = selectedIds.has(z.id);
-                        return (
-                          <g key={z.id} className="cursor-pointer" onClick={() => toggleZone(z.id)}>
-                            <path
-                              d={z.d}
-                              fill={sel ? "var(--brand-green)" : "#aaa"}
-                              fillOpacity={sel ? 0.45 : 0.2}
-                              stroke={sel ? "var(--brand-green)" : "#aaa"}
-                              strokeWidth={sel ? 1.8 : 1}
-                              strokeLinejoin="round"
-                            />
-                            <text
-                              x={z.lx} y={z.ly}
-                              fontSize={10}
-                              fill={sel ? "#3a5235" : "#888"}
-                              fontWeight={800}
-                              textAnchor="middle"
-                            >
-                              {z.id}
-                            </text>
-                            {sel && (
-                              <circle cx={z.lx} cy={z.ly + 13} r="6" fill="var(--brand-green)" fillOpacity="0.9">
-                                <animate attributeName="opacity" values="0.9;0.5;0.9" dur="2s" repeatCount="indefinite" />
-                              </circle>
-                            )}
-                            {sel && (
-                              <text x={z.lx} y={z.ly + 17} fontSize={7} fill="white" fontWeight={900} textAnchor="middle">✓</text>
-                            )}
-                          </g>
-                        );
-                      })}
-                    </svg>
-                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md flex items-center" style={{ lineHeight: 1 }}>
+                  <div className="relative w-full h-[200px] rounded-[13px] overflow-hidden">
+                    <KakaoMap
+                      parcels={mapParcels}
+                      center={resolvedCenter}
+                      level={3}
+                      onParcelClick={toggleZone}
+                      className="w-full h-full"
+                    />
+                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-[8px] bg-white/85 backdrop-blur-md flex items-center pointer-events-none" style={{ lineHeight: 1 }}>
                       <span className="text-[9.5px] text-neutral-600 tracking-tight" style={{ lineHeight: 1 }}>{address}</span>
                     </div>
                   </div>
@@ -433,7 +282,7 @@ export function OnboardingScreen() {
               )}
             </div>
 
-            {/* Crop setting — shown after map loaded */}
+            {/* 작물 설정 */}
             {loadState === "done" && (
               <div className="rounded-[16px] bg-white p-3.5">
                 <div className="flex items-center justify-between mb-2.5">
@@ -469,7 +318,7 @@ export function OnboardingScreen() {
 
                 {perZone && (
                   <div className="space-y-2">
-                    {MOCK_ZONES.filter((z) => selectedIds.has(z.id)).map((z) => {
+                    {fetchedZones.filter((z) => selectedIds.has(z.id)).map((z) => {
                       const crop = zoneCrops[z.id] ?? globalCrop;
                       const isExpanded = expandedZone === z.id;
                       return (
@@ -482,11 +331,15 @@ export function OnboardingScreen() {
                               className="w-8 h-8 rounded-[9px] flex items-center justify-center"
                               style={{ background: "color-mix(in srgb, var(--brand-green) 12%, transparent)" }}
                             >
-                              <span className="text-[10px]" style={{ color: "var(--brand-green)", fontWeight: 800 }}>{z.id}</span>
+                              <span className="text-[9px] font-mono" style={{ color: "var(--brand-green)", fontWeight: 800 }}>
+                                {z.pnu.slice(-4)}
+                              </span>
                             </div>
                             <div className="flex-1 text-left">
-                              <p className="text-[12.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>{z.id} 구역</p>
-                              <p className="text-[10.5px] text-neutral-500 tracking-tight">{crop}</p>
+                              <p className="text-[12px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
+                                {z.address.split(' ').slice(-2).join(' ')}
+                              </p>
+                              <p className="text-[10.5px] text-neutral-500 tracking-tight">{crop} · {z.area}㎡</p>
                             </div>
                             <ChevronDown
                               className="w-4 h-4 text-neutral-400 transition-transform"
@@ -509,21 +362,22 @@ export function OnboardingScreen() {
               </div>
             )}
 
-            {/* Summary */}
+            {/* 등록 필지 요약 */}
             {loadState === "done" && selectedIds.size > 0 && (
               <div className="rounded-[16px] bg-white p-3.5">
                 <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
                   등록될 필지 · {selectedIds.size}개
                 </span>
                 <div className="mt-2 space-y-1.5">
-                  {MOCK_ZONES.filter((z) => selectedIds.has(z.id)).map((z) => (
+                  {fetchedZones.filter((z) => selectedIds.has(z.id)).map((z) => (
                     <div key={z.id} className="flex items-center gap-2.5 px-1">
                       <div className="w-2 h-2 rounded-full" style={{ background: "var(--brand-green)" }} />
-                      <span className="text-[12.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
-                        {z.id} 구역
+                      <span className="text-[12px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
+                        {z.address.split(' ').slice(-2).join(' ')}
                       </span>
-                      <span className="text-[11px] text-neutral-400 tracking-tight">{z.area}㎡</span>
-                      <span className="ml-auto text-[11px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 600 }}>
+                      <span className="text-[10.5px] text-neutral-400 tracking-tight font-mono">{z.pnu.slice(-6)}</span>
+                      <span className="ml-auto text-[11px] text-neutral-400 tracking-tight">{z.area}㎡</span>
+                      <span className="text-[11px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 600 }}>
                         {getCrop(z.id)}
                       </span>
                     </div>
@@ -531,6 +385,104 @@ export function OnboardingScreen() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── STEP 3 ── */}
+        {step === 3 && (
+          <div className="space-y-3">
+            <div className="rounded-[16px] bg-white p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Bell className="w-5 h-5" style={{ color: "var(--brand-green)" }} />
+                <div>
+                  <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                    주변 필지 알림 설정
+                  </span>
+                  <p className="text-[14px] text-neutral-900 tracking-tight" style={{ fontWeight: 700 }}>
+                    병해 발생 시 알림 받을 반경
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative w-full h-[240px] rounded-[13px] overflow-hidden">
+                <KakaoMap
+                  parcels={step3Parcels}
+                  center={resolvedCenter}
+                  level={6}
+                  radiusKm={notificationRadius}
+                  className="w-full h-full"
+                />
+                <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/85 backdrop-blur-md flex items-center pointer-events-none">
+                  <span className="text-[10px] text-neutral-700 tracking-tight leading-none" style={{ fontWeight: 600 }}>
+                    🔔 알림 반경: {notificationRadius}km
+                  </span>
+                </div>
+                <div className="absolute bottom-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md flex items-center pointer-events-none">
+                  <span className="text-[9px] text-neutral-600 tracking-tight leading-none">내 필지 중심</span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-[14px] bg-neutral-50 p-3.5">
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-[12px] text-neutral-600 tracking-tight" style={{ fontWeight: 600 }}>
+                    알림 반경 조절
+                  </span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-[28px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+                      {notificationRadius}
+                    </span>
+                    <span className="text-[13px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>km</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  step="1"
+                  value={notificationRadius}
+                  onChange={(e) => setNotificationRadius(Number(e.target.value))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 100%)`,
+                  }}
+                />
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-[10px] text-neutral-400 tracking-tight">1km</span>
+                  <span className="text-[10px] text-neutral-400 tracking-tight">20km</span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-[12px] p-3" style={{ background: "rgba(233,180,76,0.10)" }}>
+                <p className="text-[11.5px] text-neutral-700 tracking-tight" style={{ lineHeight: 1.5 }}>
+                  내 필지에서 <span style={{ color: "#8a6620", fontWeight: 700 }}>{notificationRadius}km 이내</span>의 다른 농가 필지에서 병해가 검출되면 실시간 알림을 받습니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[16px] bg-white p-3.5">
+              <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                추천 설정
+              </span>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {[3, 5, 10].map((km) => (
+                  <button
+                    key={km}
+                    onClick={() => setNotificationRadius(km)}
+                    className="py-2.5 rounded-[11px] transition-all active:scale-[0.97]"
+                    style={
+                      notificationRadius === km
+                        ? { background: "var(--brand-green)", color: "#fff" }
+                        : { background: "#f0f0ee", color: "#555" }
+                    }
+                  >
+                    <span className="text-[13px] tracking-tight" style={{ fontWeight: 700 }}>{km}km</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-neutral-400 tracking-tight">
+                • 3km: 인접 농가만 • 5km: 같은 마을권 • 10km: 광역 모니터링
+              </p>
+            </div>
           </div>
         )}
       </div>

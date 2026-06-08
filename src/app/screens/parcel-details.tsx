@@ -3,12 +3,9 @@ import { ChevronRight, Sprout, Ruler, Check, CheckCircle2, ChevronLeft, Hand } f
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { DiagZone } from "../components/diagnosis-sheet";
 import { EmptyParcelList, EmptyDiagHistory } from "../components/empty-states";
+import { KakaoMap, ParcelPolygon } from "../components/kakao-map";
+import { PARCEL_COORDS } from "../data/parcel-coords";
 import { useApp } from "../context";
-
-const FARM_DB = [
-  { name: '충청남도 청양군 청양읍 적누리', pnu: '4479025025103890002' },
-  { name: '테스트용 B구역 고추밭', pnu: '1234567890123456789' },
-];
 
 type ParcelState = "danger" | "warn" | "safe";
 
@@ -59,10 +56,7 @@ const HISTORY: HistoryItem[] = [
       time: "09:38", treat: "1-2일 내 방제 권장",
       disease: "탄저병", diseaseEn: "Anthracnose", color: "#CF4F0E",
       drugs: [
-        { name: "안트라콜",    primary: true, reason: "탄저병 전문 예방·치료제. 잔류효과 길고 우천 전 살포 효과적" },
-        { name: "다이센엠-45", primary: true, reason: "접촉성 살균, 넓은 병해 스펙트럼. 저항성 발현 낮음" },
-        { name: "캡타폴",                    reason: "감염 초기 치료에 적합. 병반 확산 억제" },
-        { name: "프로피네브",                reason: "예방 위주 살포용. 다른 계통과 교호 사용 권장" },
+        { name: "카브리오 에이(수화제)", primary: true, reason: "물 20L당 10g 희석하여 발병 초 10일 간격으로 살포. 장마철에는 7일 간격으로 살포" },
       ],
     },
   },
@@ -75,8 +69,7 @@ const HISTORY: HistoryItem[] = [
       time: "09:22", treat: "관찰 후 판단",
       disease: "탄저병 의심", diseaseEn: "Anthracnose (suspected)", color: "#E9B44C",
       drugs: [
-        { name: "안트라콜",  primary: true, reason: "의심 단계 예방 처리. 확산 전 조기 차단 효과" },
-        { name: "프로피네브",              reason: "잎 표면 보호막 형성. 예방 살포용" },
+        { name: "카브리오 에이(수화제)", primary: true, reason: "물 20L당 10g 희석하여 발병 초 10일 간격으로 살포. 장마철에는 7일 간격으로 살포" },
       ],
     },
   },
@@ -97,60 +90,28 @@ function OverviewMap({
   treatedIds: Set<string>;
   onSelect: (id: string) => void;
 }) {
+  const parcels: ParcelPolygon[] = PARCELS.map((p) => {
+    const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
+    return {
+      id: p.id,
+      label: p.id,
+      coordinates: PARCEL_COORDS[p.id] ?? [],
+      state,
+    };
+  });
+
   return (
-    <div className="relative w-full h-[280px] rounded-[16px] overflow-hidden bg-gradient-to-br from-[#eef2ea] via-[#e3ead9] to-[#d4dfc5]">
-      <svg className="absolute inset-0 w-full h-full opacity-25" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="ovGrid" width="28" height="28" patternUnits="userSpaceOnUse">
-            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="var(--brand-green)" strokeWidth="0.4" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#ovGrid)" />
-      </svg>
+    <div className="relative w-full h-[280px] rounded-[16px] overflow-hidden">
+      <KakaoMap parcels={parcels} level={4} onParcelClick={onSelect} className="w-full h-full" />
 
-      <svg viewBox="0 0 360 280" className="absolute inset-0 w-full h-full">
-        {PARCELS.map((p) => {
-          const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
-          const color = TONE[state].color;
-          return (
-            <g key={p.id} className="cursor-pointer" onClick={() => onSelect(p.id)}>
-              <path
-                d={p.d}
-                fill={color}
-                fillOpacity={0.4}
-                stroke={color}
-                strokeWidth={state === "danger" ? 2 : 1.5}
-                strokeLinejoin="round"
-              />
-              <text
-                x={p.labelX}
-                y={p.labelY}
-                fontSize={state === "danger" ? 13 : 11}
-                fill={color}
-                fontWeight={800}
-                textAnchor="middle"
-              >
-                {p.id}
-              </text>
-              {state === "danger" && (
-                <circle cx={p.labelX} cy={p.labelY + 14} r="4" fill={color}>
-                  <animate attributeName="r" values="4;8;4" dur="1.8s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.8;0.25;0.8" dur="1.8s" repeatCount="indefinite" />
-                </circle>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-
-      <div className="absolute top-2.5 left-2.5 px-2.5 py-1.5 rounded-[10px] bg-white/80 backdrop-blur-md flex items-center gap-2.5">
+      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-[10px] bg-white/85 backdrop-blur-md flex items-center gap-2.5 pointer-events-none">
         <Legend color="var(--brand-green)" label="안전" />
         <Legend color="#E9B44C" label="주의" />
         <Legend color="#CF4F0E" label="위험" />
       </div>
-      <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-white/80 backdrop-blur-md flex items-center gap-1">
+      <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center gap-1 pointer-events-none">
         <Hand className="w-3 h-3 text-neutral-700" />
-        <span className="text-[10px] text-neutral-700 tracking-tight">구역 선택</span>
+        <span className="text-[10px] text-neutral-700 tracking-tight leading-none">구역 선택</span>
       </div>
     </div>
   );
@@ -166,38 +127,16 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 function ZoomedMap({ parcel, state }: { parcel: Parcel; state: ParcelState }) {
-  const color = TONE[state].color;
+  const coords = PARCEL_COORDS[parcel.id];
+  const parcels: ParcelPolygon[] = coords
+    ? [{ id: parcel.id, label: parcel.id, coordinates: coords, state, selected: true }]
+    : [];
+
   return (
-    <div className="relative w-full h-[170px] rounded-[16px] overflow-hidden bg-gradient-to-br from-[#eef2ea] via-[#e3ead9] to-[#d4dfc5]">
-      <svg className="absolute inset-0 w-full h-full opacity-25">
-        <defs>
-          <pattern id="zmGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--brand-green)" strokeWidth="0.4" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#zmGrid)" />
-      </svg>
-      <svg viewBox="0 0 360 170" className="absolute inset-0 w-full h-full">
-        <path
-          d="M40,30 L320,28 L325,138 L36,144 Z"
-          fill={color}
-          fillOpacity={0.4}
-          stroke={color}
-          strokeWidth={2.2}
-          strokeLinejoin="round"
-        />
-        <text x="180" y="92" fontSize="22" fill={color} fontWeight="800" textAnchor="middle">
-          {parcel.id}
-        </text>
-        {state === "danger" && (
-          <circle cx="180" cy="108" r="9" fill={color}>
-            <animate attributeName="r" values="9;15;9" dur="1.8s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.8s" repeatCount="indefinite" />
-          </circle>
-        )}
-      </svg>
-      <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center">
-        <span className="text-[10px] text-neutral-700 tracking-tight">미니맵 · 확대</span>
+    <div className="relative w-full h-[170px] rounded-[16px] overflow-hidden">
+      <KakaoMap parcels={parcels} level={3} className="w-full h-full" />
+      <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center pointer-events-none">
+        <span className="text-[10px] text-neutral-700 tracking-tight leading-none">미니맵 · 확대</span>
       </div>
     </div>
   );
@@ -387,28 +326,6 @@ type ParcelDetailsProps = {
   onInitialConsumed?: () => void;
   onOpenDiagSheet: (zone: DiagZone) => void;
 };
-
-const fetchFarmDataFromAWS = async (searchName: string) => {
-    if (!searchName.trim()) return;
-
-    // 1. 장부에서 사용자가 검색한 지역명으로 PNU 코드 찾기
-    const targetFarm = FARM_DB.find((farm) => farm.name.includes(searchName));
-    
-    // 매칭되는 지역이 없으면 아무 작동 없이 조용히 함수 종료
-    if (!targetFarm) return; 
-
-    // 2. 매칭된 PNU 코드를 AWS 서버로 쏴서 데이터 받아오기
-    try {
-      // 🚨 나중에 팀원이 서버 주소 주면 주석(//) 풀고 진짜 주소로 바꾸기!
-      // const response = await fetch(`https://api.fami-capstone.com/farm?pnu=${targetFarm.pnu}`);
-      // const geoJsonData = await response.json();
-      
-      // 받아온 데이터(geoJsonData)를 지도 컴포넌트로 넘겨주는 상태(State) 업데이트 로직을 이 자리에 추가하면 됩니다.
-      
-    } catch (error) {
-      console.error("AWS 통신 에러:", error);
-    }
-  };
 
 export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiagSheet }: ParcelDetailsProps) {
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);

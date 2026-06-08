@@ -25,10 +25,7 @@ const DEFAULT_ZONE: DiagZone = {
   diseaseEn: "Anthracnose",
   color: "#CF4F0E",
   drugs: [
-    { name: "안트라콜", primary: true,  reason: "탄저병 전문 예방·치료제. 잔류효과 길고 우천 전 살포 효과적" },
-    { name: "다이센엠-45", primary: true, reason: "접촉성 살균, 넓은 병해 스펙트럼. 저항성 발현 낮음" },
-    { name: "캡타폴",    reason: "감염 초기 치료에 적합. 병반 확산 억제" },
-    { name: "프로피네브", reason: "예방 위주 살포용. 다른 계통과 교호 사용 권장" },
+    { name: "카브리오 에이(수화제)", primary: true, reason: "물 20L당 10g 희석하여 발병 초 10일 간격으로 살포. 장마철에는 7일 간격으로 살포" },
   ],
 };
 
