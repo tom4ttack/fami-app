@@ -101,9 +101,9 @@ export function OnboardingScreen() {
   const finish = () => setStage("app");
 
   // KakaoMap용 파셀 배열
-  const mapParcels: ParcelPolygon[] = fetchedZones.map((z) => ({
+  const mapParcels: ParcelPolygon[] = fetchedZones.map((z, idx) => ({
     id: z.id,
-    label: z.pnu.slice(-4), // PNU 끝 4자리를 라벨로 표시
+    label: String(idx + 1),
     coordinates: z.coordinates,
     state: "safe" as const,
     selected: selectedIds.has(z.id),
@@ -111,9 +111,9 @@ export function OnboardingScreen() {
 
   const step3Parcels: ParcelPolygon[] = fetchedZones
     .filter((z) => selectedIds.has(z.id))
-    .map((z) => ({
+    .map((z, idx) => ({
       id: z.id,
-      label: z.pnu.slice(-4),
+      label: String(idx + 1),
       coordinates: z.coordinates,
       state: "safe" as const,
       selected: true,
@@ -221,21 +221,12 @@ export function OnboardingScreen() {
                 </button>
               </div>
 
-              {/* PNU 매칭 정보 */}
-              {loadState === "done" && fetchedZones.length > 0 && (
-                <div className="mt-2 flex items-center gap-1.5 px-1">
-                  <span className="text-[10px] text-neutral-400 tracking-tight">PNU</span>
-                  <span className="text-[10px] tracking-tight font-mono" style={{ color: "var(--brand-green)", fontWeight: 600 }}>
-                    {fetchedZones[0].pnu}
-                  </span>
-                </div>
-              )}
 
               {/* 로딩 */}
               {loadState === "loading" && (
                 <div className="mt-3 h-[180px] rounded-[13px] bg-neutral-50 flex flex-col items-center justify-center gap-2">
                   <LoadSpinner size={20} color="var(--brand-green)" />
-                  <span className="text-[12px] text-neutral-500 tracking-tight">PNU 조회 후 좌표를 불러오는 중…</span>
+                  <span className="text-[12px] text-neutral-500 tracking-tight">지도 데이터를 불러오는 중…</span>
                 </div>
               )}
 
@@ -331,8 +322,8 @@ export function OnboardingScreen() {
                               className="w-8 h-8 rounded-[9px] flex items-center justify-center"
                               style={{ background: "color-mix(in srgb, var(--brand-green) 12%, transparent)" }}
                             >
-                              <span className="text-[9px] font-mono" style={{ color: "var(--brand-green)", fontWeight: 800 }}>
-                                {z.pnu.slice(-4)}
+                              <span className="text-[11px]" style={{ color: "var(--brand-green)", fontWeight: 800 }}>
+                                {fetchedZones.indexOf(z) + 1}
                               </span>
                             </div>
                             <div className="flex-1 text-left">
@@ -375,7 +366,6 @@ export function OnboardingScreen() {
                       <span className="text-[12px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
                         {z.address.split(' ').slice(-2).join(' ')}
                       </span>
-                      <span className="text-[10.5px] text-neutral-400 tracking-tight font-mono">{z.pnu.slice(-6)}</span>
                       <span className="ml-auto text-[11px] text-neutral-400 tracking-tight">{z.area}㎡</span>
                       <span className="text-[11px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 600 }}>
                         {getCrop(z.id)}
