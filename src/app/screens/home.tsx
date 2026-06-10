@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { ChevronRight, ScanSearch, AlertTriangle, Play, Square, AlertOctagon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ChevronRight, ScanSearch, AlertTriangle, Play, Square, AlertOctagon, Camera } from "lucide-react";
 import { FarmMap } from "../components/farm-map";
 import { EmptyFarmMap, EmptyTodaySummary } from "../components/empty-states";
 import { useApp } from "../context";
+import { triggerCapture, getDiagnosis } from "../services/device-api";
 
 type Props = {
   onAllParcels: () => void;
@@ -59,28 +60,68 @@ function Stat({
   );
 }
 
+const CAPTURE_INTERVAL_MS = 5000;
+
 function DiagnosisControl() {
-  const [running, setRunning] = useState(false);
+  const { captureRunning, setCaptureRunning, setLiveImageTs, setLiveDiagnosis, liveImageTs } = useApp();
   const [showStop, setShowStop] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const doCapture = async () => {
+    setCapturing(true);
+    try {
+      await triggerCapture();
+      setLiveImageTs(Date.now());
+      try {
+        const result = await getDiagnosis();
+        setLiveDiagnosis(result);
+      } catch {}
+    } catch {}
+    setCapturing(false);
+  };
+
+  useEffect(() => {
+    if (!captureRunning) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+    doCapture();
+    intervalRef.current = setInterval(doCapture, CAPTURE_INTERVAL_MS);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [captureRunning]);
+
+  const handleStop = () => {
+    setCaptureRunning(false);
+    setShowStop(false);
+  };
 
   return (
     <div className="rounded-[16px] bg-white p-4">
       <div className="flex items-center gap-1.5 mb-3">
         <span className="text-[13px] text-neutral-800 tracking-tight" style={{ fontWeight: 700 }}>AI 예찰 제어</span>
-        {running && (
+        {captureRunning && (
           <span
             className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-white"
             style={{ background: "var(--brand-green)", fontWeight: 600 }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            진행 중
+            {capturing ? "촬영 중" : "진행 중"}
+          </span>
+        )}
+        {!captureRunning && liveImageTs > 0 && (
+          <span className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-neutral-500 bg-neutral-100 tracking-tight">
+            <Camera className="w-3 h-3" />
+            마지막 촬영 완료
           </span>
         )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={() => setRunning(true)}
-          disabled={running}
+          onClick={() => setCaptureRunning(true)}
+          disabled={captureRunning}
           className="h-[52px] rounded-[14px] flex items-center justify-center gap-2 text-white tracking-tight active:scale-[0.98] transition-transform disabled:opacity-40"
           style={{ background: "var(--brand-green)", fontSize: 14, fontWeight: 700 }}
         >
@@ -88,11 +129,11 @@ function DiagnosisControl() {
           진단 시작
         </button>
         <button
-          onClick={() => setRunning(false)}
-          disabled={!running}
+          onClick={handleStop}
+          disabled={!captureRunning}
           className="h-[52px] rounded-[14px] flex items-center justify-center gap-2 tracking-tight active:scale-[0.98] transition-transform disabled:opacity-40"
           style={{
-            background: running ? "rgba(233,180,76,0.12)" : "#f0f0ee",
+            background: captureRunning ? "rgba(233,180,76,0.12)" : "#f0f0ee",
             color: "#E9B44C", fontSize: 14, fontWeight: 700,
           }}
         >
@@ -110,7 +151,7 @@ function DiagnosisControl() {
         </button>
         {showStop && (
           <button
-            onClick={() => { setRunning(false); setShowStop(false); }}
+            onClick={() => { handleStop(); }}
             className="mt-1 w-full h-11 rounded-[13px] flex items-center justify-center gap-2 text-[13.5px] text-white tracking-tight active:scale-[0.98] transition-transform"
             style={{ background: "#CF4F0E", fontWeight: 700 }}
           >

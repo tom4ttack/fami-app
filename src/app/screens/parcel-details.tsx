@@ -6,6 +6,7 @@ import { EmptyParcelList, EmptyDiagHistory } from "../components/empty-states";
 import { KakaoMap, ParcelPolygon } from "../components/kakao-map";
 import { PARCEL_COORDS } from "../data/parcel-coords";
 import { useApp } from "../context";
+import { latestImageUrl } from "../services/device-api";
 
 type ParcelState = "danger" | "warn" | "safe";
 
@@ -143,7 +144,7 @@ function ZoomedMap({ parcel, state }: { parcel: Parcel; state: ParcelState }) {
 }
 
 function DiagnosisHistorySection({ onOpenDiagSheet }: { onOpenDiagSheet: (z: DiagZone) => void }) {
-  const { mockData } = useApp();
+  const { mockData, liveImageTs } = useApp();
   return (
     <section className="mt-5 px-5">
       <div className="flex items-end justify-between mb-3 px-0.5">
@@ -168,7 +169,13 @@ function DiagnosisHistorySection({ onOpenDiagSheet }: { onOpenDiagSheet: (z: Dia
                     style={{ background: t.color }}
                   />
                   <div className="rounded-[14px] bg-white p-2.5 flex gap-3">
-                    <div className="w-[68px] h-[68px] rounded-[10px] flex-shrink-0 bg-neutral-200" />
+                    <div className="w-[68px] h-[68px] rounded-[10px] flex-shrink-0 bg-neutral-200 overflow-hidden">
+                      <ImageWithFallback
+                        src={liveImageTs > 0 && idx === 0 ? latestImageUrl(liveImageTs) : h.photo}
+                        alt="병반 사진"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span

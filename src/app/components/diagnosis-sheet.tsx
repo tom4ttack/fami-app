@@ -1,5 +1,7 @@
 import { X, Sparkles, Crop } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useApp } from "../context";
+import { latestImageUrl } from "../services/device-api";
 
 export type DiagZone = {
   zone: string;
@@ -33,6 +35,8 @@ type Props = { open: boolean; onClose: () => void; zone?: DiagZone };
 
 export function DiagnosisSheet({ open, onClose, zone = DEFAULT_ZONE }: Props) {
   const bgAccent = `${zone.color}18`;
+  const { liveImageTs } = useApp();
+  const mainPhoto = liveImageTs > 0 ? latestImageUrl(liveImageTs) : zone.photo;
 
   return (
     <>
@@ -70,14 +74,26 @@ export function DiagnosisSheet({ open, onClose, zone = DEFAULT_ZONE }: Props) {
         <div className="px-5 pb-5 overflow-y-auto" style={{ height: "calc(100% - 76px)" }}>
           {/* Photo */}
           <div className="relative rounded-[16px] overflow-hidden aspect-[16/10] bg-neutral-200">
+            <ImageWithFallback
+              src={mainPhoto}
+              alt="병반 사진"
+              className="w-full h-full object-cover"
+            />
             <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center justify-center">
               <span className="text-[10px] text-neutral-700 tracking-tight text-center">2026.05.16 {zone.time}</span>
             </div>
             <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-full text-white flex items-center justify-center" style={{ background: zone.color }}>
               <span className="text-[10px] tracking-tight text-center" style={{ fontWeight: 700 }}>병해 검출</span>
             </div>
-            <div className="absolute bottom-2.5 right-2.5 w-16 h-12 rounded-[10px] bg-neutral-300 overflow-hidden">
-            </div>
+            {liveImageTs > 0 && (
+              <div className="absolute bottom-2.5 right-2.5 w-16 h-12 rounded-[10px] overflow-hidden border-2 border-white/60">
+                <ImageWithFallback
+                  src={latestImageUrl(liveImageTs)}
+                  alt="최근 촬영"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
           </div>
 
           {/* Name */}

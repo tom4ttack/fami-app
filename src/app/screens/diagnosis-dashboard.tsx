@@ -5,6 +5,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { DiagZone } from "../components/diagnosis-sheet";
 import { EmptyDiagSummaryCard, EmptyDiagResultList } from "../components/empty-states";
 import { useApp } from "../context";
+import { latestImageUrl } from "../services/device-api";
 
 type Disease = {
   name: string;
@@ -93,7 +94,7 @@ const TONE: Record<Disease["tone"], { color: string; bg: string; label: string }
 
 export function DiagnosisDashboard({ onOpenDiagSheet }: { onOpenDiagSheet: (zone: DiagZone) => void }) {
   const [open, setOpen] = useState<number | null>(0);
-  const { mockData } = useApp();
+  const { mockData, liveImageTs } = useApp();
 
   return (
     <div className="pb-6">
@@ -175,7 +176,12 @@ export function DiagnosisDashboard({ onOpenDiagSheet }: { onOpenDiagSheet: (zone
                           onClick={() => (d.tone === "danger" || d.tone === "warn") ? onOpenDiagSheet(z) : undefined}
                           className="w-full flex gap-3 rounded-[12px] bg-neutral-50 p-2.5 active:bg-neutral-100 transition-colors text-left"
                         >
-                          <div className="w-16 h-16 rounded-[10px] flex-shrink-0 relative bg-neutral-200">
+                          <div className="w-16 h-16 rounded-[10px] flex-shrink-0 relative bg-neutral-200 overflow-hidden">
+                            <ImageWithFallback
+                              src={liveImageTs > 0 ? latestImageUrl(liveImageTs) : z.photo}
+                              alt="병반 사진"
+                              className="w-full h-full object-cover"
+                            />
                             <span
                               className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full text-[9px] text-white"
                               style={{ background: t.color, fontWeight: 700 }}

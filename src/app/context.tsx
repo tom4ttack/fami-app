@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, ReactNode } from "react";
+import type { DiagnosisResult } from "./services/device-api";
 
 export type Stage = "login" | "onboarding" | "app";
 export type FontScale = 0 | 1 | 2 | 3; // 작게, 보통, 크게, 아주 크게
+export type { DiagnosisResult };
 
 export type User = {
   name: string;
@@ -38,6 +40,13 @@ type Ctx = {
 
   notificationRadius: number;
   setNotificationRadius: (r: number) => void;
+
+  captureRunning: boolean;
+  setCaptureRunning: (v: boolean) => void;
+  liveImageTs: number;
+  setLiveImageTs: (v: number) => void;
+  liveDiagnosis: DiagnosisResult | null;
+  setLiveDiagnosis: (v: DiagnosisResult | null) => void;
 };
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -78,6 +87,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loginType: null,
   });
   const [parcels, setParcels] = useState<Parcel[]>(DEFAULT_PARCELS);
+  const [captureRunning, setCaptureRunning] = useState(false);
+  const [liveImageTs, setLiveImageTs] = useState(0);
+  const [liveDiagnosis, setLiveDiagnosis] = useState<DiagnosisResult | null>(null);
 
   return (
     <AppCtx.Provider
@@ -88,7 +100,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         mockData, setMockData,
         user, setUser,
         parcels, setParcels,
-        notificationRadius, setNotificationRadius
+        notificationRadius, setNotificationRadius,
+        captureRunning, setCaptureRunning,
+        liveImageTs, setLiveImageTs,
+        liveDiagnosis, setLiveDiagnosis,
       }}
     >
       {children}
