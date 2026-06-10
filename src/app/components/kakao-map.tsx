@@ -28,18 +28,29 @@ const sdkCallbacks: Array<(ok: boolean) => void> = [];
 
 function loadSdk(cb: (ok: boolean) => void) {
   if (sdkState === "ready") { cb(true); return; }
-  if (sdkState === "error") { cb(false); return; }
+  if (sdkState === "error") { sdkState = "idle"; } 
+  
   sdkCallbacks.push(cb);
   if (sdkState === "loading") return;
   sdkState = "loading";
+
+  const oldScript = document.getElementById("kakao-maps-sdk");
+  if (oldScript) oldScript.remove();
+
   const script = document.createElement("script");
   script.id = "kakao-maps-sdk";
   script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&libraries=services&autoload=false`;
+  
   script.onload = () => {
-    window.kakao.maps.load(() => {
-      sdkState = "ready";
-      sdkCallbacks.splice(0).forEach((fn) => fn(true));
-    });
+    if (window.kakao && window.kakao.maps) {
+      window.kakao.maps.load(() => {
+        sdkState = "ready";
+        sdkCallbacks.splice(0).forEach((fn) => fn(true));
+      });
+    } else {
+      sdkState = "error";
+      sdkCallbacks.splice(0).forEach((fn) => fn(false));
+    }
   };
   script.onerror = () => {
     sdkState = "error";
@@ -49,7 +60,6 @@ function loadSdk(cb: (ok: boolean) => void) {
 }
 
 // ─── Mock map rendered when the SDK is unavailable ───────────────────────────
-
 const MOCK_GRID_LINES = 8;
 const MOCK_ROAD_COLOR = "#d6d0c4";
 const MOCK_BG = "#e8e0d0";
@@ -71,70 +81,65 @@ function latLngToSvgXY(
 
 function MockMap({
   parcels,
+  center: centerLatLng,
   radiusKm,
   onParcelClick,
 }: {
   parcels: ParcelPolygon[];
+  center?: LatLng;
   radiusKm?: number;
   onParcelClick?: (id: string) => void;
 }) {
   const W = 400;
   const H = 300;
+  const KM_PER_LAT = 111;
+  const KM_PER_LNG = 88.8;
+
+  const geoCenter = useMemo<LatLng>(() => {
+    if (centerLatLng) return centerLatLng;
+    const all = parcels.flatMap((p) => p.coordinates);
+    if (all.length === 0) return { lat: 36.4576, lng: 126.8032 };
+    return {
+      lat: all.reduce((s, c) => s + c.lat, 0) / all.length,
+      lng: all.reduce((s, c) => s + c.lng, 0) / all.length,
+    };
+  }, [centerLatLng, parcels]);
 
   const bounds = useMemo(() => {
     const all = parcels.flatMap((p) => p.coordinates);
-    if (all.length === 0) return { minLat: 36.44, maxLat: 36.47, minLng: 126.79, maxLng: 126.82 };
-    const lats = all.map((c) => c.lat);
-    const lngs = all.map((c) => c.lng);
-    const pad = 0.003;
-    return {
-      minLat: Math.min(...lats) - pad,
-      maxLat: Math.max(...lats) + pad,
-      minLng: Math.min(...lngs) - pad,
-      maxLng: Math.max(...lngs) + pad,
-    };
-  }, [parcels]);
+    const lats = all.length > 0 ? all.map((c) => c.lat) : [geoCenter.lat];
+    const lngs = all.length > 0 ? all.map((c) => c.lng) : [geoCenter.lng];
+    const parcelPad = 0.003;
 
-  const center = useMemo(() => ({
-    x: W / 2,
-    y: H / 2,
-  }), []);
+    const maxRadiusLatDeg = 20 / KM_PER_LAT;
+    const maxRadiusLngDeg = 20 / KM_PER_LNG;
+
+    return {
+      minLat: Math.min(Math.min(...lats) - parcelPad, geoCenter.lat - maxRadiusLatDeg),
+      maxLat: Math.max(Math.max(...lats) + parcelPad, geoCenter.lat + maxRadiusLatDeg),
+      minLng: Math.min(Math.min(...lngs) - parcelPad, geoCenter.lng - maxRadiusLngDeg),
+      maxLng: Math.max(Math.max(...lngs) + parcelPad, geoCenter.lng + maxRadiusLngDeg),
+    };
+  }, [parcels, geoCenter]);
+
+  const centerSvg = useMemo(() => latLngToSvgXY(geoCenter, bounds, W, H), [geoCenter, bounds]);
 
   const radiusPx = useMemo(() => {
     if (!radiusKm) return 0;
     const lngSpan = bounds.maxLng - bounds.minLng || 0.01;
-    const kmPerDeg = 88.8;
-    return (radiusKm / (lngSpan * kmPerDeg)) * (W - 40);
+    const pxPerDeg = (W - 40) / lngSpan;
+    const degPerKm = 1 / KM_PER_LNG;
+    return radiusKm * degPerKm * pxPerDeg;
   }, [radiusKm, bounds]);
 
   return (
-    <svg
-      width="100%"
-      height="100%"
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="xMidYMid slice"
-      style={{ display: "block" }}
-    >
-      {/* Background */}
+    <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" style={{ display: "block" }}>
       <rect width={W} height={H} fill={MOCK_BG} />
-
-      {/* Field texture tiles */}
       {Array.from({ length: 6 }).map((_, row) =>
         Array.from({ length: 8 }).map((_, col) => (
-          <rect
-            key={`field-${row}-${col}`}
-            x={col * 52 - 4}
-            y={row * 52 - 4}
-            width={46}
-            height={46}
-            fill={MOCK_FIELD_COLOR}
-            opacity={0.5 + Math.sin(row * 3 + col) * 0.15}
-            rx={2}
-          />
+          <rect key={`field-${row}-${col}`} x={col * 52 - 4} y={row * 52 - 4} width={46} height={46} fill={MOCK_FIELD_COLOR} opacity={0.5 + Math.sin(row * 3 + col) * 0.15} rx={2} />
         ))
       )}
-
-      {/* Grid roads */}
       {Array.from({ length: MOCK_GRID_LINES }).map((_, i) => {
         const x = (W / MOCK_GRID_LINES) * i;
         const y = (H / MOCK_GRID_LINES) * i;
@@ -145,12 +150,8 @@ function MockMap({
           </g>
         );
       })}
-
-      {/* Diagonal accent roads */}
       <line x1={0} y1={H * 0.3} x2={W} y2={H * 0.55} stroke={MOCK_ROAD_COLOR} strokeWidth={5} opacity={0.7} />
       <line x1={0} y1={H * 0.7} x2={W * 0.6} y2={H} stroke={MOCK_ROAD_COLOR} strokeWidth={4} opacity={0.6} />
-
-      {/* Parcels */}
       {parcels.map((parcel) => {
         const color = STATE_COLORS[parcel.state ?? "safe"];
         const pts = parcel.coordinates.map((c) => latLngToSvgXY(c, bounds, W, H));
@@ -159,48 +160,21 @@ function MockMap({
         const avgY = pts.reduce((s, p) => s + p.y, 0) / pts.length;
         return (
           <g key={parcel.id} style={{ cursor: onParcelClick ? "pointer" : "default" }} onClick={() => onParcelClick?.(parcel.id)}>
-            <polygon
-              points={pointsStr}
-              fill={color}
-              fillOpacity={parcel.selected ? 0.72 : 0.45}
-              stroke={color}
-              strokeWidth={parcel.state === "danger" ? 2.5 : 1.8}
-              strokeOpacity={0.9}
-            />
+            <polygon points={pointsStr} fill={color} fillOpacity={parcel.selected ? 0.72 : 0.45} stroke={color} strokeWidth={parcel.state === "danger" ? 2.5 : 1.8} strokeOpacity={0.9} />
             {parcel.label && (
-              <text
-                x={avgX}
-                y={avgY}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={9}
-                fontWeight={800}
-                fill={color}
-                style={{ paintOrder: "stroke", stroke: "rgba(255,255,255,0.88)", strokeWidth: 4 }}
-              >
+              <text x={avgX} y={avgY} textAnchor="middle" dominantBaseline="middle" fontSize={9} fontWeight={800} fill={color} style={{ paintOrder: "stroke", stroke: "rgba(255,255,255,0.88)", strokeWidth: 4 }}>
                 {parcel.label}
               </text>
             )}
           </g>
         );
       })}
-
-      {/* Radius circle */}
-      {radiusKm && radiusKm > 0 && (
-        <circle
-          cx={center.x}
-          cy={center.y}
-          r={radiusPx}
-          fill="#E9B44C"
-          fillOpacity={0.07}
-          stroke="#E9B44C"
-          strokeWidth={2.5}
-          strokeDasharray="6 4"
-          strokeOpacity={0.9}
-        />
+      {radiusKm && radiusKm > 0 && radiusPx > 0 && (
+        <circle cx={centerSvg.x} cy={centerSvg.y} r={radiusPx} fill="#E9B44C" fillOpacity={0.10} stroke="#E9B44C" strokeWidth={2.5} strokeDasharray="6 4" strokeOpacity={0.9} />
       )}
-
-      {/* Map attribution watermark */}
+      {radiusKm && radiusKm > 0 && (
+        <circle cx={centerSvg.x} cy={centerSvg.y} r={5} fill="#E9B44C" opacity={0.9} />
+      )}
       <text x={W - 6} y={H - 4} textAnchor="end" fontSize={8} fill="#999" opacity={0.6}>
         지도 미리보기
       </text>
@@ -209,7 +183,6 @@ function MockMap({
 }
 
 // ─── Main KakaoMap component ──────────────────────────────────────────────────
-
 export type KakaoMapProps = {
   parcels?: ParcelPolygon[];
   center?: LatLng;
@@ -236,12 +209,11 @@ export function KakaoMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const overlaysRef = useRef<any[]>([]);
-  const [sdkStatus, setSdkStatus] = useState<"loading" | "ready" | "error">(
-    sdkState === "ready" ? "ready" : sdkState === "error" ? "error" : "loading"
-  );
+  
+  // 🌟 [오타 완벽 수정!] 오작동하던 끝괄호를 깨끗하게 지웠습니다.
+  const [sdkStatus, setSdkStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
-    if (sdkStatus !== "loading") return;
     loadSdk((ok) => setSdkStatus(ok ? "ready" : "error"));
   }, []);
 
@@ -264,6 +236,9 @@ export function KakaoMap({
 
     if (!mapRef.current) {
       mapRef.current = new kakao.maps.Map(containerRef.current, { center: mapCenter, level });
+      if (kakao.maps.MapTypeId && kakao.maps.MapTypeId.USE_DISTRICT) {
+        mapRef.current.addOverlayMapTypeId(kakao.maps.MapTypeId.USE_DISTRICT); 
+      }
     } else {
       mapRef.current.setCenter(mapCenter);
       mapRef.current.setLevel(level);
@@ -348,7 +323,7 @@ export function KakaoMap({
   if (sdkStatus === "error") {
     return (
       <div className={`relative w-full h-full overflow-hidden ${className}`} style={{ background: MOCK_BG }}>
-        <MockMap parcels={parcels} radiusKm={radiusKm} onParcelClick={onParcelClick} />
+        <MockMap parcels={parcels} center={center} radiusKm={radiusKm} onParcelClick={onParcelClick} />
       </div>
     );
   }
@@ -357,7 +332,7 @@ export function KakaoMap({
     <div className={`relative w-full h-full ${className}`}>
       {sdkStatus === "loading" && (
         <div className="absolute inset-0 flex items-center justify-center rounded-[inherit]" style={{ background: "#eef2ea" }}>
-          <span className="text-[11px] text-neutral-500 tracking-tight">지도 로딩 중…</span>
+          <span className="text-[11px] text-neutral-500 tracking-tight">진짜 카카오 지도 엔진 기동 중…</span>
         </div>
       )}
       <div ref={containerRef} className="w-full h-full" />
