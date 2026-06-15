@@ -10,7 +10,7 @@ import { firebaseApp } from "./firebase";
 // ─── VAPID 공개 키 ──────────────────────────────────────────────────────────────
 // Firebase 콘솔 → 프로젝트 설정 → 클라우드 메시지 → 웹 푸시 인증서 → 키 쌍 생성
 // ⚠️ 아래 placeholder 를 실제 VAPID 키로 교체하세요.
-export const VAPID_KEY = "YOUR_VAPID_PUBLIC_KEY";
+export const VAPID_KEY = "BAGQ1fu4ZO4b7zgmAVdHUIc6Kj9UDeaYDu5oGxu51CiWkM1j0gIGmnsixE28_4FnQ_qgcYEw_KZpHYc_0vTitjg";
 
 let _messaging: Messaging | null = null;
 

@@ -7,12 +7,12 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 // ⚠️ 아래 placeholder 를 실제 값으로 교체하세요.
 //    vite.config.ts 의 서비스워커 설정도 동일하게 업데이트해야 합니다.
 const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID",
+  apiKey:            "AIzaSyDEaMl5CcCrGeVQ90-m24BWiko4QgfGyZM",
+  authDomain:        "fami-a4eeb.firebaseapp.com",
+  projectId:         "fami-a4eeb",
+  storageBucket:     "fami-a4eeb.firebasestorage.app",
+  messagingSenderId: "759029537488",
+  appId:             "web:18635aa4375f3f72665cd5",
 };
 
 // 중복 초기화 방지 (React StrictMode / HMR 환경)
