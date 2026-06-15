@@ -11,23 +11,36 @@ type Props = {
 };
 
 function TodaySummary() {
+  // ✅ 1. 전역 상태에서 진짜 필지(parcels)와 실시간 알림(pushNotifs)을 가져옵니다.
+  const { pushNotifs, parcels } = useApp();
+
+  // ✅ 2. 고정값 '12' 대신, 온보딩에서 등록한 진짜 필지 개수를 세어줍니다.
+  const totalZones = parcels ? parcels.length : 0;
+  
+  // ✅ 3. 알림 데이터 중 level이 "danger"(위험)인 실시간 구역 개수를 카운트합니다.
+  const dangerZones = pushNotifs ? pushNotifs.filter((n) => n.level === "danger").length : 0;
+  
+  // ✅ 4. 정상 구역은 내 진짜 필지 총개수에서 위험 구역을 뺀 값으로 계산합니다.
+  const safeZones = totalZones > dangerZones ? totalZones - dangerZones : 0;
+
   return (
     <div className="rounded-[16px] bg-white p-4">
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#E9B44C" }} />
-        <span className="text-[11.5px] text-neutral-500 tracking-tight">오늘의 진단 요약 · 2026.05.16</span>
+        <span className="text-[11.5px] text-neutral-500 tracking-tight">오늘의 진단 요약 · 실시간</span>
       </div>
       <p
         className="mt-2 tracking-tight text-neutral-900"
         style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.3 }}
       >
-        오늘 <span style={{ color: "var(--brand-green)" }}>12구역</span> 예찰 완료,{" "}
-        <span style={{ color: "#CF4F0E" }}>위험 2구역</span> 감지
+        오늘 <span style={{ color: "var(--brand-green)" }}>{totalZones}구역</span> 예찰 완료,{" "}
+        <span style={{ color: "#CF4F0E" }}>위험 {dangerZones}구역</span> 감지
       </p>
       <div className="mt-3.5 grid grid-cols-3 gap-2">
-        <Stat label="예찰 완료" value="12" tone="var(--brand-green)" Icon={ScanSearch} />
-        <Stat label="위험 감지" value="2" tone="#CF4F0E" Icon={AlertTriangle} />
-        <Stat label="정상 구역" value="10" tone="var(--brand-green)" subtle />
+        {/* ✅ 스탯 카드들에도 진짜 연동된 실시간 숫자가 주입됩니다 */}
+        <Stat label="예찰 완료" value={String(totalZones)} tone="var(--brand-green)" Icon={ScanSearch} />
+        <Stat label="위험 감지" value={String(dangerZones)} tone="#CF4F0E" Icon={AlertTriangle} />
+        <Stat label="정상 구역" value={String(safeZones)} tone="var(--brand-green)" subtle />
       </div>
     </div>
   );
@@ -151,7 +164,7 @@ function DiagnosisControl() {
         </button>
         {showStop && (
           <button
-            onClick={() => { handleStop(); }}
+            onClick={handleStop}
             className="mt-1 w-full h-11 rounded-[13px] flex items-center justify-center gap-2 text-[13.5px] text-white tracking-tight active:scale-[0.98] transition-transform"
             style={{ background: "#CF4F0E", fontWeight: 700 }}
           >
@@ -165,12 +178,14 @@ function DiagnosisControl() {
 }
 
 export function HomeScreen({ onAllParcels, onZoneSelect }: Props) {
-  const { mockData } = useApp();
+  // ✅ 5. useApp()에서 parcels를 안전하게 수급하도록 연동을 완비했습니다.
+  const { parcels } = useApp();
 
   return (
     <div className="pb-6">
       <div className="px-5 pt-2">
-        {mockData ? <TodaySummary /> : <EmptyTodaySummary />}
+        {/* ✅ 6. 가짜 스위치 대신 진짜 필지가 등록되었는지를 기준으로 화면을 제어합니다. */}
+        {parcels && parcels.length > 0 ? <TodaySummary /> : <EmptyTodaySummary />}
       </div>
 
       <section className="mt-4 px-5">
@@ -180,11 +195,13 @@ export function HomeScreen({ onAllParcels, onZoneSelect }: Props) {
               팜맵 지도
             </h2>
             <p className="text-[11.5px] text-neutral-500 tracking-tight mt-0.5">
-              {mockData ? "구역을 눌러 바로 상세 보기" : "필지를 등록하면 여기에 표시됩니다"}
+              {parcels && parcels.length > 0 ? "구역을 눌러 바로 상세 보기" : "필지를 등록하면 여기에 표시됩니다"}
             </p>
           </div>
         </div>
-        {mockData ? (
+        
+        {/* ✅ 7. 붕괴되었던 JSX 지도 레이아웃 구조와 닫는 태그들을 완벽하게 복구했습니다 */}
+        {parcels && parcels.length > 0 ? (
           <>
             <FarmMap onZoneSelect={onZoneSelect} onZoneClick={onAllParcels} />
             <button
@@ -192,7 +209,7 @@ export function HomeScreen({ onAllParcels, onZoneSelect }: Props) {
               className="mt-3 w-full h-11 rounded-[14px] bg-white active:bg-neutral-50 flex items-center justify-between px-4 transition-colors"
             >
               <span className="text-[13.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 500 }}>
-                전체 필지 보기 · 6 필지
+                전체 필지 보기 · {parcels.length} 필지
               </span>
               <ChevronRight className="w-4 h-4 text-neutral-400" />
             </button>

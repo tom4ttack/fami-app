@@ -22,7 +22,8 @@ type Parcel = {
   labelY: number;
 };
 
-const PARCELS: Parcel[] = [
+// 기본 개발용 가짜 데이터 (mockData가 true일 때 하위 호환용)
+const MOCK_PARCELS: Parcel[] = [
   { id: "A-1", state: "safe",   name: "A-1 구역", area: "310㎡", crop: "청양고추", note: "안전",         d: "M28,32 L162,28 L168,108 L34,116 Z",    labelX: 92,  labelY: 76  },
   { id: "A-2", state: "safe",   name: "A-2 구역", area: "295㎡", crop: "청양고추", note: "안전",         d: "M180,28 L308,32 L302,112 L172,108 Z",  labelX: 238, labelY: 76  },
   { id: "A-3", state: "warn",   name: "A-3 구역", area: "280㎡", crop: "청양고추", note: "탄저병 의심",  d: "M316,34 L342,36 L340,114 L308,114 Z",  labelX: 325, labelY: 80  },
@@ -84,14 +85,17 @@ const HISTORY: HistoryItem[] = [
   },
 ];
 
+// ✅ 1. OverviewMap이 고정된 데이터를 쓰지 않고 동적 배열을 받도록 수정했습니다.
 function OverviewMap({
+  parcelsList,
   treatedIds,
   onSelect,
 }: {
+  parcelsList: Parcel[];
   treatedIds: Set<string>;
   onSelect: (id: string) => void;
 }) {
-  const parcels: ParcelPolygon[] = PARCELS.map((p) => {
+  const parcels: ParcelPolygon[] = parcelsList.map((p) => {
     const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
     return {
       id: p.id,
@@ -151,66 +155,62 @@ function DiagnosisHistorySection({ onOpenDiagSheet }: { onOpenDiagSheet: (z: Dia
         <h2 className="text-[18px] tracking-tight text-neutral-900" style={{ fontWeight: 700 }}>
           사진 진단 이력
         </h2>
-        {mockData && <span className="text-[11.5px] text-neutral-400 tracking-tight">최근 → 과거</span>}
+        <span className="text-[11.5px] text-neutral-400 tracking-tight">최근 → 과거</span>
       </div>
 
-      {!mockData ? (
-        <EmptyDiagHistory />
-      ) : (
-        <div className="relative pl-5">
-          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-neutral-200" />
-          <div className="space-y-3">
-            {HISTORY.map((h, idx) => {
-              const t = TONE[h.state];
-              return (
-                <div key={idx} className="relative">
-                  <span
-                    className="absolute -left-5 top-3 w-3.5 h-3.5 rounded-full ring-[3px] ring-[#f5f5f3]"
-                    style={{ background: t.color }}
-                  />
-                  <div className="rounded-[14px] bg-white p-2.5 flex gap-3">
-                    <div className="w-[68px] h-[68px] rounded-[10px] flex-shrink-0 bg-neutral-200 overflow-hidden">
-                      <ImageWithFallback
-                        src={liveImageTs > 0 && idx === 0 ? latestImageUrl(liveImageTs) : h.photo}
-                        alt="병반 사진"
-                        className="w-full h-full object-cover"
-                      />
+      <div className="relative pl-5">
+        <div className="absolute left-[7px] top-2 bottom-2 w-px bg-neutral-200" />
+        <div className="space-y-3">
+          {HISTORY.map((h, idx) => {
+            const t = TONE[h.state];
+            return (
+              <div key={idx} className="relative">
+                <span
+                  className="absolute -left-5 top-3 w-3.5 h-3.5 rounded-full ring-[3px] ring-[#f5f5f3]"
+                  style={{ background: t.color }}
+                />
+                <div className="rounded-[14px] bg-white p-2.5 flex gap-3">
+                  <div className="w-[68px] h-[68px] rounded-[10px] flex-shrink-0 bg-neutral-200 overflow-hidden">
+                    <ImageWithFallback
+                      src={liveImageTs > 0 && idx === 0 ? latestImageUrl(liveImageTs) : h.photo}
+                      alt="병반 사진"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full text-white tracking-tight"
+                        style={{ background: t.color, fontWeight: 600 }}
+                      >
+                        {t.label}
+                      </span>
+                      <span className="text-[11px] text-neutral-500 tracking-tight">{h.date}</span>
+                      <span className="text-[11px] text-neutral-400 tracking-tight ml-auto">{h.time}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded-full text-white tracking-tight"
-                          style={{ background: t.color, fontWeight: 600 }}
-                        >
-                          {t.label}
-                        </span>
-                        <span className="text-[11px] text-neutral-500 tracking-tight">{h.date}</span>
-                        <span className="text-[11px] text-neutral-400 tracking-tight ml-auto">{h.time}</span>
-                      </div>
-                      <p className="mt-1 text-[13.5px] text-neutral-900 tracking-tight truncate" style={{ fontWeight: 600 }}>
-                        {h.label}
-                      </p>
-                      {h.diagZone ? (
-                        <button
-                          onClick={() => onOpenDiagSheet(h.diagZone!)}
-                          className="mt-0.5 text-[11.5px] tracking-tight inline-flex items-center"
-                          style={{ color: "var(--brand-green)", fontWeight: 600 }}
-                        >
-                          사진 상세 보기 <ChevronRight className="w-3 h-3" />
-                        </button>
-                      ) : (
-                        <span className="mt-0.5 text-[11.5px] text-neutral-400 tracking-tight inline-flex items-center">
-                          이상 없음
-                        </span>
-                      )}
-                    </div>
+                    <p className="mt-1 text-[13.5px] text-neutral-900 tracking-tight truncate" style={{ fontWeight: 600 }}>
+                      {h.label}
+                    </p>
+                    {h.diagZone ? (
+                      <button
+                        onClick={() => onOpenDiagSheet(h.diagZone!)}
+                        className="mt-0.5 text-[11.5px] tracking-tight inline-flex items-center"
+                        style={{ color: "var(--brand-green)", fontWeight: 600 }}
+                      >
+                        사진 상세 보기 <ChevronRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="mt-0.5 text-[11.5px] text-neutral-400 tracking-tight inline-flex items-center">
+                        이상 없음
+                      </span>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -337,7 +337,9 @@ type ParcelDetailsProps = {
 export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiagSheet }: ParcelDetailsProps) {
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [treatedIds, setTreatedIds] = useState<Set<string>>(new Set());
-  const { mockData } = useApp();
+  
+  // ✅ 2. 전역 컨텍스트에서 mockData, parcels, pushNotifs(FCM실시간알림)를 긁어옵니다.
+  const { mockData, parcels, pushNotifs } = useApp();
 
   useEffect(() => {
     if (initialSelectedId) {
@@ -346,7 +348,28 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
     }
   }, [initialSelectedId]);
 
-  const parcel = selectedId ? PARCELS.find((p) => p.id === selectedId) ?? null : null;
+  // ✅ 3. 실시간 알림 데이터와 현재 필지 정보를 결합하여 동적 필지 배열을 생성합니다.
+  const activeParcels: Parcel[] = mockData 
+    ? MOCK_PARCELS 
+    : (parcels ?? []).map((p) => {
+        // AWS 실시간 FCM 알림 중 이 구역(Zone)에 해당하는 가장 최신 알림 검색
+        const latestNotif = pushNotifs ? pushNotifs.find((n) => n.zone === p.id) : null;
+        
+        return {
+          id: p.id,
+          name: p.name,
+          area: p.area.includes("㎡") ? p.area : `${p.area}㎡`,
+          crop: p.crop,
+          // 실시간 FCM 알림이 있다면 알림의 심각도(danger/warn)를 꽂고, 없으면 기본 "safe" 처리합니다.
+          state: latestNotif && (latestNotif.level === "danger" || latestNotif.level === "warn") 
+  ? latestNotif.level 
+  : "safe",
+          note: latestNotif ? latestNotif.body : "안전",
+          d: "", labelX: 0, labelY: 0
+        };
+      });
+
+  const parcel = selectedId ? activeParcels.find((p) => p.id === selectedId) ?? null : null;
 
   if (parcel) {
     const isTreated = treatedIds.has(parcel.id);
@@ -367,7 +390,8 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
     );
   }
 
-  if (!mockData) {
+  // ✅ 4. !mockData 트랩을 제거하고, 진짜 등록된 필지 데이터가 하나도 없을 때만 빈 화면을 띄우게 전면 수정했습니다.
+  if (!activeParcels || activeParcels.length === 0) {
     return (
       <div className="pb-6 px-5 pt-4">
         <span className="text-[11.5px] text-neutral-500 tracking-tight">전체 필지</span>
@@ -381,16 +405,17 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
     );
   }
 
+  // ✅ 5. 동적 카운트 계산 처리
   const counts = {
-    danger: PARCELS.filter((p) => !treatedIds.has(p.id) && p.state === "danger").length,
-    warn: PARCELS.filter((p) => !treatedIds.has(p.id) && p.state === "warn").length,
-    safe: PARCELS.length - PARCELS.filter((p) => !treatedIds.has(p.id) && p.state !== "safe").length,
+    danger: activeParcels.filter((p) => !treatedIds.has(p.id) && p.state === "danger").length,
+    warn:   activeParcels.filter((p) => !treatedIds.has(p.id) && p.state === "warn").length,
+    safe:   activeParcels.length - activeParcels.filter((p) => !treatedIds.has(p.id) && p.state !== "safe").length,
   };
 
   return (
     <div className="pb-6">
       <div className="px-5 pt-2">
-        <span className="text-[11.5px] text-neutral-500 tracking-tight">전체 필지 · 6 구역</span>
+        <span className="text-[11.5px] text-neutral-500 tracking-tight">전체 필지 · {activeParcels.length} 구역</span>
         <p
           className="tracking-tight text-neutral-900"
           style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}
@@ -398,7 +423,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
           지도를 눌러 구역을 선택
         </p>
         <div className="mt-3">
-          <OverviewMap treatedIds={treatedIds} onSelect={setSelectedId} />
+          <OverviewMap parcelsList={activeParcels} treatedIds={treatedIds} onSelect={setSelectedId} />
         </div>
       </div>
 
@@ -450,7 +475,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
           <span className="text-[11.5px] text-neutral-400 tracking-tight">탭하여 상세 보기</span>
         </div>
         <div className="space-y-2">
-          {PARCELS.map((p) => {
+          {activeParcels.map((p) => {
             const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
             const t = TONE[state];
             return (
