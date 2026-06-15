@@ -100,7 +100,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [stage, setStage] = useState<Stage>("login");
   const [dark, setDark] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>(1);
-  const [mockData, setMockData] = useState(true);
+  const [mockData, setMockData] = useState(false);
   const [notificationRadius, setNotificationRadius] = useState(5);
   const [user, setUser] = useState<User>({
     name: "",
