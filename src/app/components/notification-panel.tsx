@@ -1,9 +1,10 @@
-import { X, AlertTriangle, AlertCircle, ChevronRight } from "lucide-react";
+import { X, AlertTriangle, AlertCircle, ChevronRight, Bell, BellOff, BellRing } from "lucide-react";
 import { DiagZone } from "./diagnosis-sheet";
 import { EmptyNotifications } from "./empty-states";
 import { useApp } from "../context";
+import type { PushNotif } from "../context";
 
-type Notif = {
+type MockNotif = {
   id: number;
   zone: string;
   title: string;
@@ -14,7 +15,7 @@ type Notif = {
   diagZone: DiagZone;
 };
 
-const NOTIFS: Notif[] = [
+const MOCK_NOTIFS: MockNotif[] = [
   {
     id: 1, zone: "B-3", title: "B-3 구역 예찰 완료", body: "탄저병 의심 증상 발견 (정확도 92%)", time: "방금 전", level: "danger", unread: true,
     diagZone: {
@@ -77,10 +78,119 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onOpenDiagSheet: (zone: DiagZone) => void;
+  onRequestPermission: () => void;
 };
 
-export function NotificationPanel({ open, onClose, onOpenDiagSheet }: Props) {
-  const { mockData } = useApp();
+function PermissionBanner({
+  permission,
+  onRequest,
+}: {
+  permission: string | null;
+  onRequest: () => void;
+}) {
+  if (permission === "granted" || permission === null) return null;
+
+  if (permission === "denied") {
+    return (
+      <div className="mx-3 mt-3 rounded-[13px] p-3 flex items-start gap-2.5" style={{ background: "rgba(207,79,14,0.08)" }}>
+        <BellOff className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#CF4F0E" }} />
+        <div>
+          <p className="text-[12.5px] tracking-tight" style={{ color: "#CF4F0E", fontWeight: 700 }}>알림이 차단되어 있습니다</p>
+          <p className="text-[11px] text-neutral-600 tracking-tight mt-0.5">
+            브라우저 주소창 잠금 아이콘 → 알림 → 허용으로 변경하세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (permission === "unsupported") {
+    return (
+      <div className="mx-3 mt-3 rounded-[13px] p-3 flex items-start gap-2.5" style={{ background: "#f0f0ee" }}>
+        <BellOff className="w-4 h-4 flex-shrink-0 mt-0.5 text-neutral-400" />
+        <p className="text-[11.5px] text-neutral-500 tracking-tight">이 브라우저는 푸시 알림을 지원하지 않습니다.</p>
+      </div>
+    );
+  }
+
+  // "default" — 아직 요청하지 않음
+  return (
+    <div className="mx-3 mt-3 rounded-[13px] p-3 flex items-start gap-2.5" style={{ background: "color-mix(in srgb, var(--brand-green) 10%, transparent)" }}>
+      <Bell className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--brand-green)" }} />
+      <div className="flex-1">
+        <p className="text-[12.5px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 700 }}>실시간 알림을 받아보세요</p>
+        <p className="text-[11px] text-neutral-600 tracking-tight mt-0.5 mb-2">
+          병해 발생 즉시 푸시 알림으로 알려드립니다.
+        </p>
+        <button
+          onClick={onRequest}
+          className="h-8 px-3 rounded-[9px] text-[12px] text-white tracking-tight active:scale-[0.97] transition-transform"
+          style={{ background: "var(--brand-green)", fontWeight: 700 }}
+        >
+          알림 허용하기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PushNotifCard({ n, onOpenDiagSheet, onClose }: { n: PushNotif; onOpenDiagSheet: (z: DiagZone) => void; onClose: () => void }) {
+  const isDanger = n.level === "danger";
+  const accent = isDanger ? "#CF4F0E" : n.level === "warn" ? "#E9B44C" : "var(--brand-green)";
+  const bgAccent = isDanger ? "rgba(207,79,14,0.10)" : n.level === "warn" ? "rgba(233,180,76,0.12)" : "color-mix(in srgb, var(--brand-green) 10%, transparent)";
+  const levelLabel = isDanger ? "위험" : n.level === "warn" ? "주의" : "정상";
+  const timeStr = n.time.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className="w-full text-left rounded-[14px] bg-white p-3 flex items-start gap-3">
+      <div className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: bgAccent }}>
+        <BellRing className="w-4 h-4" style={{ color: accent }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white tracking-tight" style={{ background: accent, fontWeight: 600 }}>
+            {levelLabel}
+          </span>
+          {n.zone && <span className="text-[11px] text-neutral-500 tracking-tight">{n.zone}</span>}
+          <span className="text-[11px] text-neutral-400 tracking-tight ml-auto">{timeStr}</span>
+          {n.unread && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#CF4F0E" }} />}
+        </div>
+        <p className="mt-0.5 text-[13.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>{n.title}</p>
+        <p className="text-[12px] text-neutral-600 tracking-tight">{n.body}</p>
+        {n.data?.zone && (
+          <button
+            onClick={() => {
+              onClose();
+              // FCM 알림에서 diagZone 재구성
+              const diagZone: DiagZone = {
+                zone: n.data!.zone,
+                accuracy: Number(n.data!.accuracy ?? 0),
+                area: Number(n.data!.area ?? 0),
+                photo: n.data!.photo ?? "",
+                time: timeStr,
+                treat: n.data!.treat ?? "",
+                disease: n.data!.disease ?? n.title,
+                diseaseEn: n.data!.disease_en ?? "",
+                color: isDanger ? "#CF4F0E" : "#E9B44C",
+                drugs: [],
+              };
+              onOpenDiagSheet(diagZone);
+            }}
+            className="mt-1.5 inline-flex items-center gap-0.5 text-[11px]"
+            style={{ color: accent, fontWeight: 600 }}
+          >
+            진단 상세 보기 <ChevronRight className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function NotificationPanel({ open, onClose, onOpenDiagSheet, onRequestPermission }: Props) {
+  const { mockData, notifPermission, pushNotifs } = useApp();
+  const hasPushNotifs = pushNotifs.length > 0;
+
   return (
     <>
       <div
@@ -110,55 +220,70 @@ export function NotificationPanel({ open, onClose, onOpenDiagSheet }: Props) {
           </button>
         </div>
 
+        {/* 권한 배너 */}
+        <PermissionBanner permission={notifPermission} onRequest={onRequestPermission} />
+
         <div className="px-3 py-3 overflow-y-auto space-y-2" style={{ maxHeight: "calc(100% - 90px)" }}>
-          {!mockData ? (
+          {/* 실시간 FCM 알림 (상단 표시) */}
+          {hasPushNotifs && (
+            <>
+              <p className="px-1 text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                실시간 수신 알림
+              </p>
+              {pushNotifs.map((n) => (
+                <PushNotifCard key={n.id} n={n} onOpenDiagSheet={onOpenDiagSheet} onClose={onClose} />
+              ))}
+              {mockData && (
+                <p className="px-1 pt-1 text-[11px] text-neutral-400 tracking-tight border-t border-neutral-200">
+                  이전 알림
+                </p>
+              )}
+            </>
+          )}
+
+          {/* 샘플 알림 */}
+          {!mockData && !hasPushNotifs ? (
             <EmptyNotifications />
-          ) : NOTIFS.map((n) => {
-            const isDanger = n.level === "danger";
-            const accent = isDanger ? "#CF4F0E" : "#E9B44C";
-            const bgAccent = isDanger ? "rgba(207,79,14,0.10)" : "rgba(233,180,76,0.12)";
-            return (
-              <button
-                key={n.id}
-                onClick={() => {
-                  onClose();
-                  onOpenDiagSheet(n.diagZone);
-                }}
-                className="w-full text-left rounded-[14px] bg-white p-3 flex items-start gap-3 active:bg-neutral-50 transition-colors"
-              >
-                <div
-                  className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                  style={{ background: bgAccent }}
+          ) : mockData ? (
+            MOCK_NOTIFS.map((n) => {
+              const isDanger = n.level === "danger";
+              const accent = isDanger ? "#CF4F0E" : "#E9B44C";
+              const bgAccent = isDanger ? "rgba(207,79,14,0.10)" : "rgba(233,180,76,0.12)";
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => {
+                    onClose();
+                    onOpenDiagSheet(n.diagZone);
+                  }}
+                  className="w-full text-left rounded-[14px] bg-white p-3 flex items-start gap-3 active:bg-neutral-50 transition-colors"
                 >
-                  {isDanger ? (
-                    <AlertTriangle className="w-4 h-4" style={{ color: accent }} />
-                  ) : (
-                    <AlertCircle className="w-4 h-4" style={{ color: accent }} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="text-[10px] px-1.5 py-0.5 rounded-full text-white tracking-tight"
-                      style={{ background: accent, fontWeight: 600 }}
-                    >
-                      {isDanger ? "위험" : "주의"}
-                    </span>
-                    <span className="text-[11px] text-neutral-500 tracking-tight">{n.zone}</span>
-                    <span className="text-[11px] text-neutral-400 tracking-tight ml-auto">{n.time}</span>
-                    {n.unread && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#CF4F0E" }} />}
+                  <div className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: bgAccent }}>
+                    {isDanger ? (
+                      <AlertTriangle className="w-4 h-4" style={{ color: accent }} />
+                    ) : (
+                      <AlertCircle className="w-4 h-4" style={{ color: accent }} />
+                    )}
                   </div>
-                  <p className="mt-0.5 text-[13.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
-                    {n.title}
-                  </p>
-                  <p className="text-[12px] text-neutral-600 tracking-tight">{n.body}</p>
-                  <div className="mt-1.5 inline-flex items-center gap-0.5 text-[11px]" style={{ color: accent, fontWeight: 600 }}>
-                    진단 대시보드에서 보기 <ChevronRight className="w-3 h-3" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white tracking-tight" style={{ background: accent, fontWeight: 600 }}>
+                        {isDanger ? "위험" : "주의"}
+                      </span>
+                      <span className="text-[11px] text-neutral-500 tracking-tight">{n.zone}</span>
+                      <span className="text-[11px] text-neutral-400 tracking-tight ml-auto">{n.time}</span>
+                      {n.unread && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#CF4F0E" }} />}
+                    </div>
+                    <p className="mt-0.5 text-[13.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>{n.title}</p>
+                    <p className="text-[12px] text-neutral-600 tracking-tight">{n.body}</p>
+                    <div className="mt-1.5 inline-flex items-center gap-0.5 text-[11px]" style={{ color: accent, fontWeight: 600 }}>
+                      진단 대시보드에서 보기 <ChevronRight className="w-3 h-3" />
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })
+          ) : null}
         </div>
       </aside>
     </>

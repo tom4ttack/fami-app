@@ -11,6 +11,7 @@ import { DiagnosisDashboard } from "./screens/diagnosis-dashboard";
 import { LoginScreen } from "./screens/login";
 import { OnboardingScreen } from "./screens/onboarding";
 import { AppProvider, useApp, FONT_SCALES } from "./context";
+import { useFcm } from "./hooks/useFcm";
 
 function StatusBar() {
   return (
@@ -64,7 +65,8 @@ function TopBar({
 }
 
 function AppShell() {
-  const { stage, dark, fontScale } = useApp();
+  const { stage, dark, fontScale, pushNotifs, markAllPushRead } = useApp();
+  const { requestPermission } = useFcm();
   const [tab, setTab] = useState("home");
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [diagSheetZone, setDiagSheetZone] = useState<DiagZone | null>(null);
@@ -72,6 +74,8 @@ function AppShell() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [userEditOpen, setUserEditOpen] = useState(false);
   const [parcelEditOpen, setParcelEditOpen] = useState(false);
+
+  const hasUnread = pushNotifs.some((n) => n.unread);
 
   const scale = FONT_SCALES[fontScale];
 
@@ -100,8 +104,8 @@ function AppShell() {
             <TopBar
               title={TITLES[tab]}
               onMenu={() => setMenuOpen(true)}
-              onBell={() => setNotifOpen(true)}
-              hasUnread
+              onBell={() => { setNotifOpen(true); markAllPushRead(); }}
+              hasUnread={hasUnread}
             />
 
             <div className="absolute inset-0 top-[100px] bottom-[78px] overflow-y-auto">
@@ -149,6 +153,7 @@ function AppShell() {
                 setTab("parcel");
                 setDiagSheetZone(zone);
               }}
+              onRequestPermission={requestPermission}
             />
 
             <UserEditSheet open={userEditOpen} onClose={() => setUserEditOpen(false)} />

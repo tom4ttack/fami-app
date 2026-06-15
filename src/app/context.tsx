@@ -5,6 +5,18 @@ export type Stage = "login" | "onboarding" | "app";
 export type FontScale = 0 | 1 | 2 | 3; // 작게, 보통, 크게, 아주 크게
 export type { DiagnosisResult };
 
+/** FCM 으로 수신된 실시간 알림 */
+export type PushNotif = {
+  id: string;
+  title: string;
+  body: string;
+  time: Date;
+  level: "danger" | "warn" | "info";
+  zone?: string;
+  data?: Record<string, string>;
+  unread: boolean;
+};
+
 export type User = {
   name: string;
   phone: string;
@@ -47,6 +59,16 @@ type Ctx = {
   setLiveImageTs: (v: number) => void;
   liveDiagnosis: DiagnosisResult | null;
   setLiveDiagnosis: (v: DiagnosisResult | null) => void;
+
+  // ─── FCM ─────────────────────────────────────────────────────────────────
+  fcmToken: string | null;
+  setFcmToken: (t: string | null) => void;
+  /** "default" | "granted" | "denied" | "unsupported" | null(미확인) */
+  notifPermission: NotificationPermission | "unsupported" | null;
+  setNotifPermission: (p: NotificationPermission | "unsupported" | null) => void;
+  pushNotifs: PushNotif[];
+  addPushNotif: (n: PushNotif) => void;
+  markAllPushRead: () => void;
 };
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -91,6 +113,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [liveImageTs, setLiveImageTs] = useState(0);
   const [liveDiagnosis, setLiveDiagnosis] = useState<DiagnosisResult | null>(null);
 
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported" | null>(null);
+  const [pushNotifs, setPushNotifs] = useState<PushNotif[]>([]);
+
+  const addPushNotif = (n: PushNotif) =>
+    setPushNotifs((prev) => [n, ...prev].slice(0, 50)); // 최대 50개 유지
+
+  const markAllPushRead = () =>
+    setPushNotifs((prev) => prev.map((n) => ({ ...n, unread: false })));
+
   return (
     <AppCtx.Provider
       value={{
@@ -104,6 +136,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         captureRunning, setCaptureRunning,
         liveImageTs, setLiveImageTs,
         liveDiagnosis, setLiveDiagnosis,
+        fcmToken, setFcmToken,
+        notifPermission, setNotifPermission,
+        pushNotifs, addPushNotif, markAllPushRead,
       }}
     >
       {children}

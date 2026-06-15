@@ -156,7 +156,7 @@ function DiagnosisControl() {
             style={{ background: "#CF4F0E", fontWeight: 700 }}
           >
             <AlertOctagon className="w-4 h-4" />
-            비상 정지
+            비상 정지 — 즉시 귀환
           </button>
         )}
       </div>
