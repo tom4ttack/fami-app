@@ -1,4 +1,4 @@
-export const API_BASE = "http://10.10.10.135:8000";
+export const API_BASE = "http://api.ghands.kr:8000";
 
 export type DiagnosisResult = {
   disease: string;
