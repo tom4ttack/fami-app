@@ -11,7 +11,7 @@ const firebaseConfig = {
   projectId: "fami-a4eeb",
   storageBucket: "fami-a4eeb.firebasestorage.app",
   messagingSenderId: "759029537488",
-  appId: "web:18635aa4375f3f72665cd5",
+  appId: "1:759029537488:web:18635aa4375f3f72665cd5",
 };
 
 // 백그라운드 파이어베이스 엔진 초기화
