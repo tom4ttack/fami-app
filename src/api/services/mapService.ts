@@ -3,19 +3,19 @@ import type { ApiResponse } from "../types";
 
 export type LatLng = { lat: number; lng: number };
 
+// 🎯 [수정] 백엔드 MySQL(coordinates_wgs) 응답 규격에 맞게 타입 최적화
 export type PnuParcelData = {
-  id: string;        // 서버 생성 필지 식별자
   pnu: string;
-  address: string;
-  area: string;      // ㎡
-  coordinates: LatLng[];
-  center: LatLng;
+  coordinates: LatLng[]; // 백엔드가 coordinates_wgs를 읽어서 이 키값으로 보내줍니다.
+  id?: string;           // 에러 방지용 선택적 필드 처리
+  address?: string;      
+  area?: string;         
+  center?: LatLng;       
 };
 
 // ── PNU 기반 좌표 조회 ─────────────────────────────────────────────────────
-// GET /api/map/parcel?pnu={pnu}
-// AWS MySQL에서 PNU에 해당하는 폴리곤 좌표 반환
 export const mapService = {
+  // 🎯 백엔드 서버의 /api/map/parcel?pnu=... 주소로 진짜 데이터를 요청하는 함수
   getCoordinatesByPnu(pnu: string, token?: string): Promise<ApiResponse<PnuParcelData>> {
     return request(`/api/map/parcel?pnu=${encodeURIComponent(pnu)}`, { token });
   },
@@ -56,21 +56,16 @@ export const mapService = {
 };
 
 // ── 개발용 Mock 응답 ──────────────────────────────────────────────────────
-// 백엔드 미연결 시 PNU → 임시 좌표 반환
-// 실 서버 연결 후 이 함수는 사용되지 않음
+// 🎯 [수정] 바뀐 타입에 맞춰 껍데기 구조 매칭
 const MOCK_PNU_COORDS: Record<string, PnuParcelData> = {
   "4479025025103890002": {
-    id: "P-001",
     pnu: "4479025025103890002",
-    address: "충청남도 청양군 청양읍 적누리",
-    area: "356",
     coordinates: [
       { lat: 36.4578, lng: 126.8015 },
       { lat: 36.4578, lng: 126.8029 },
       { lat: 36.4568, lng: 126.8029 },
       { lat: 36.4568, lng: 126.8015 },
     ],
-    center: { lat: 36.4573, lng: 126.8022 },
   },
 };
 

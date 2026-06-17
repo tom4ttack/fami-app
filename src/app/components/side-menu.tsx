@@ -13,7 +13,7 @@ export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
   const { dark, setDark, fontScale, setFontScale, mockData, setMockData, user, parcels, setStage, notificationRadius, setNotificationRadius } = useApp();
   const [devMode, setDevMode] = useState(false);
   const tapCountRef = useRef(0);
-  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const tapTimerRef = useRef<any>(null);
 
   const handleLogout = () => {
     onClose();
