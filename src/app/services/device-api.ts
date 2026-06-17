@@ -1,4 +1,4 @@
-export const API_BASE = "http://api.ghands.kr:8000";
+export const API_BASE = "https://api.ghands.kr";
 
 export type DiagnosisResult = {
   disease: string;
