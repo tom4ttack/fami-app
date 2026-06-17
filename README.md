@@ -1,7 +1,8 @@
 
-  # Mobile App Dashboard UI
+  # Mobile App Dashboard UI (복사)
 
-  This is a code bundle for Mobile App Dashboard UI. The original project is available at 
+  This is a code bundle for Mobile App Dashboard UI (복사). The original project is available at https://www.figma.com/design/Em8WlYWqdM1g4Mt756qEcV/Mobile-App-Dashboard-UI--%EB%B3%B5%EC%82%AC-.
+
   ## Running the code
 
   Run `npm i` to install the dependencies.

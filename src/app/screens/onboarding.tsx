@@ -21,7 +21,7 @@ export function OnboardingScreen() {
   const [region, setRegion] = useState(user.region);
 
   // Step 2 — address & PNU
-  const [address, setAddress] = useState("충청남도 청양군 청양읍 적누리");
+  const [address, setAddress] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fetchedZones, setFetchedZones] = useState<PnuParcelData[]>([]);

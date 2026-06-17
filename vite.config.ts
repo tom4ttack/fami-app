@@ -15,12 +15,12 @@ importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 
 // ⚠️ src/app/services/firebase.ts 의 firebaseConfig 와 동일하게 교체
 firebase.initializeApp({
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID",
+  apiKey:            "AIzaSyDEaMl5CcCrGeVQ90-m24BWiko4QgfGyZM",
+  authDomain:        "fami-a4eeb.firebaseapp.com",
+  projectId:         "fami-a4eeb",
+  storageBucket:     "fami-a4eeb.firebasestorage.app",
+  messagingSenderId: "759029537488",
+  appId:             "1:759029537488:web:18635aa4375f3f72665cd5",
 });
 
 const messaging = firebase.messaging();
@@ -66,7 +66,7 @@ self.addEventListener("notificationclick", function(event) {
 function figmaAssetResolver() {
   return {
     name: 'figma-asset-resolver',
-    resolveId(id: string) {
+    resolveId(id) {
       if (id.startsWith('figma:asset/')) {
         const filename = id.replace('figma:asset/', '')
         return path.resolve(__dirname, 'src/assets', filename)
