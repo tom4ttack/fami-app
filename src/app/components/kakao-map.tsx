@@ -21,7 +21,7 @@ const STATE_COLORS: Record<string, string> = {
   safe:   "#496942",
 };
 
-const KAKAO_APP_KEY = "39ee9c865e1a66a8f9a415a64c28a073";
+const KAKAO_APP_KEY = "39ee9c865e1a66a8f9a415a64c24a073";
 
 let sdkState: "idle" | "loading" | "ready" | "error" = "idle";
 const sdkCallbacks: Array<(ok: boolean) => void> = [];
@@ -36,12 +36,19 @@ function loadSdk(cb: (ok: boolean) => void) {
   script.id = "kakao-maps-sdk";
   script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&libraries=services&autoload=false`;
   script.onload = () => {
-    window.kakao.maps.load(() => {
-      sdkState = "ready";
-      sdkCallbacks.splice(0).forEach((fn) => fn(true));
-    });
+    try {
+      window.kakao.maps.load(() => {
+        sdkState = "ready";
+        sdkCallbacks.splice(0).forEach((fn) => fn(true));
+      });
+    } catch (err) {
+      console.error("[KakaoMap] maps.load 실패 — 도메인 미등록 또는 앱키 오류:", err);
+      sdkState = "error";
+      sdkCallbacks.splice(0).forEach((fn) => fn(false));
+    }
   };
-  script.onerror = () => {
+  script.onerror = (err) => {
+    console.error("[KakaoMap] SDK 스크립트 로드 실패 — 네트워크/CSP 차단:", err);
     sdkState = "error";
     sdkCallbacks.splice(0).forEach((fn) => fn(false));
   };

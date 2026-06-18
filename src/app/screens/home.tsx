@@ -165,7 +165,8 @@ function DiagnosisControl() {
 }
 
 export function HomeScreen({ onAllParcels, onZoneSelect }: Props) {
-  const { mockData } = useApp();
+  const { mockData, parcels } = useApp();
+  const hasRealParcels = !mockData && parcels.length > 0;
 
   return (
     <div className="pb-6">
@@ -180,11 +181,11 @@ export function HomeScreen({ onAllParcels, onZoneSelect }: Props) {
               팜맵 지도
             </h2>
             <p className="text-[11.5px] text-neutral-500 tracking-tight mt-0.5">
-              {mockData ? "구역을 눌러 바로 상세 보기" : "필지를 등록하면 여기에 표시됩니다"}
+              {mockData || hasRealParcels ? "구역을 눌러 바로 상세 보기" : "필지를 등록하면 여기에 표시됩니다"}
             </p>
           </div>
         </div>
-        {mockData ? (
+        {mockData || hasRealParcels ? (
           <>
             <FarmMap onZoneSelect={onZoneSelect} onZoneClick={onAllParcels} />
             <button
@@ -192,7 +193,7 @@ export function HomeScreen({ onAllParcels, onZoneSelect }: Props) {
               className="mt-3 w-full h-11 rounded-[14px] bg-white active:bg-neutral-50 flex items-center justify-between px-4 transition-colors"
             >
               <span className="text-[13.5px] text-neutral-900 tracking-tight" style={{ fontWeight: 500 }}>
-                전체 필지 보기 · 6 필지
+                전체 필지 보기 · {mockData ? 6 : parcels.length} 필지
               </span>
               <ChevronRight className="w-4 h-4 text-neutral-400" />
             </button>

@@ -1,5 +1,5 @@
-// Base URL — 환경변수로 관리, 없으면 로컬 개발 서버 사용
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+// Base URL — 환경변수 우선, 없으면 실제 서버 직접 사용
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.ghands.kr";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 

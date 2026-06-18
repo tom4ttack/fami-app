@@ -97,14 +97,14 @@ function OverviewMap({
   ctxParcels: CtxParcel[];
   useMock: boolean;
 }) {
-  const parcels: ParcelPolygon[] = parcelList.map((p) => {
+  const parcels: ParcelPolygon[] = parcelList.map((p, idx) => {
     const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
     const coords = useMock
       ? (PARCEL_COORDS[p.id] ?? [])
       : (ctxParcels.find((c) => c.id === p.id)?.coordinates ?? []);
     return {
       id: p.id,
-      label: p.id,
+      label: useMock ? p.id : String(idx + 1),
       coordinates: coords,
       state,
     };
@@ -136,10 +136,10 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function ZoomedMap({ parcel, state, realCoords }: { parcel: Parcel; state: ParcelState; realCoords?: { lat: number; lng: number }[] }) {
+function ZoomedMap({ parcel, state, realCoords, label }: { parcel: Parcel; state: ParcelState; realCoords?: { lat: number; lng: number }[]; label?: string }) {
   const coords = realCoords ?? PARCEL_COORDS[parcel.id];
   const parcels: ParcelPolygon[] = coords
-    ? [{ id: parcel.id, label: parcel.id, coordinates: coords, state, selected: true }]
+    ? [{ id: parcel.id, label: label ?? parcel.id, coordinates: coords, state, selected: true }]
     : [];
 
   return (
@@ -227,12 +227,14 @@ function DiagnosisHistorySection({ onOpenDiagSheet }: { onOpenDiagSheet: (z: Dia
 function DetailView({
   parcel,
   treated,
+  shortLabel,
   onTreat,
   onBack,
   onOpenDiagSheet,
 }: {
   parcel: Parcel;
   treated: boolean;
+  shortLabel: string;
   onTreat: () => void;
   onBack: () => void;
   onOpenDiagSheet: (zone: DiagZone) => void;
@@ -260,7 +262,7 @@ function DetailView({
         <div className="rounded-[16px] bg-white p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <span className="text-[11.5px] text-neutral-500 tracking-tight">필지 #{parcel.id}</span>
+              <span className="text-[11.5px] text-neutral-500 tracking-tight">필지 #{shortLabel}</span>
               <p
                 className="tracking-tight text-neutral-900"
                 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1 }}
@@ -301,7 +303,7 @@ function DetailView({
           </div>
 
           <div className="mt-3">
-            <ZoomedMap parcel={parcel} state={currentState} realCoords={ctxParcels.find((c) => c.id === parcel.id)?.coordinates} />
+            <ZoomedMap parcel={parcel} state={currentState} realCoords={ctxParcels.find((c) => c.id === parcel.id)?.coordinates} label={shortLabel} />
           </div>
         </div>
       </div>
@@ -372,12 +374,23 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
   const activeParcels = mockData ? PARCELS : realParcels;
   const parcel = selectedId ? activeParcels.find((p) => p.id === selectedId) ?? null : null;
 
+  // 약식 이름 생성: 목업은 기존 id(A-1), 실데이터는 A-1, A-2, ... 순번 부여
+  const LETTERS = ['A','B','C','D','E','F'];
+  const getShortLabel = (p: Parcel) => {
+    if (mockData) return p.id;
+    const idx = realParcels.findIndex((r) => r.id === p.id);
+    const letter = LETTERS[Math.floor(idx / 5)] ?? 'P';
+    const num = (idx % 5) + 1;
+    return `${letter}-${num}`;
+  };
+
   if (parcel) {
     const isTreated = treatedIds.has(parcel.id);
     return (
       <DetailView
         parcel={parcel}
         treated={isTreated}
+        shortLabel={getShortLabel(parcel)}
         onTreat={() =>
           setTreatedIds((s) => {
             const n = new Set(s);
@@ -477,6 +490,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
           {activeParcels.map((p) => {
             const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
             const t = TONE[state];
+            const label = getShortLabel(p);
             return (
               <button
                 key={p.id}
@@ -488,7 +502,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
                   style={{ background: `${t.color}1A` }}
                 >
                   <span className="text-[12.5px] tracking-tight" style={{ color: t.color, fontWeight: 800 }}>
-                    {p.id}
+                    {label}
                   </span>
                 </div>
                 <div className="flex-1 text-left min-w-0">

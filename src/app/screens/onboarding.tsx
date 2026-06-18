@@ -4,7 +4,7 @@ import { useApp, Parcel } from "../context";
 import { KakaoMap, ParcelPolygon } from "../components/kakao-map";
 import { LatLng, MAP_CENTER } from "../data/parcel-coords";
 import { searchFarmByAddress } from "../data/farm-db";
-import { mapService, getMockPnuData, PnuParcelData } from "../../api/services/mapService";
+import { mapService, PnuParcelData } from "../../api/services/mapService";
 
 const DEFAULT_ADDRESS = "충청남도 청양군 청양읍 적누리";
 
@@ -54,35 +54,27 @@ export function OnboardingScreen() {
     try {
       const zones: PnuParcelData[] = await Promise.all(
         matches.map(async (entry) => {
-          try {
-            const res = await mapService.getCoordinatesByPnu(entry.pnu);
-            const raw = (res.data ?? {}) as Partial<PnuParcelData>;
+          const res = await mapService.getCoordinatesByPnu(entry.pnu);
+          const raw = (res.data ?? {}) as Partial<PnuParcelData>;
 
-            // 백엔드는 pnu + coordinates만 반환 — 나머지는 farm-db로 보완
-            const coords = raw.coordinates ?? [];
-            const computedCenter =
-              coords.length > 0
-                ? {
-                    lat: coords.reduce((s, c) => s + c.lat, 0) / coords.length,
-                    lng: coords.reduce((s, c) => s + c.lng, 0) / coords.length,
-                  }
-                : MAP_CENTER;
+          const coords = raw.coordinates ?? [];
+          const computedCenter =
+            coords.length > 0
+              ? {
+                  lat: coords.reduce((s, c) => s + c.lat, 0) / coords.length,
+                  lng: coords.reduce((s, c) => s + c.lng, 0) / coords.length,
+                }
+              : MAP_CENTER;
 
-            const zone: PnuParcelData = {
-              id: raw?.id ?? entry.pnu,
-              pnu: raw?.pnu ?? entry.pnu,
-              address: raw?.address ?? entry.name,
-              area: raw?.area ?? "—",
-              coordinates: coords,
-              center: raw?.center ?? computedCenter,
-            };
-            return zone;
-          } catch {
-            // 백엔드 미연결 시 mock 데이터 사용
-            const mock = getMockPnuData(entry.pnu);
-            if (mock) return mock;
-            throw new Error(`PNU ${entry.pnu} 좌표 조회 실패`);
-          }
+          const zone: PnuParcelData = {
+            id: raw?.id ?? entry.pnu,
+            pnu: raw?.pnu ?? entry.pnu,
+            address: raw?.address ?? entry.name,
+            area: raw?.area ?? "—",
+            coordinates: coords,
+            center: raw?.center ?? computedCenter,
+          };
+          return zone;
         }),
       );
 
