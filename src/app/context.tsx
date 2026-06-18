@@ -29,6 +29,8 @@ export type Parcel = {
   name: string;
   area: string;
   crop: string;
+  coordinates?: { lat: number; lng: number }[];
+  center?: { lat: number; lng: number };
 };
 
 type Ctx = {

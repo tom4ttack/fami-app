@@ -6,13 +6,15 @@ import { LatLng, MAP_CENTER } from "../data/parcel-coords";
 import { searchFarmByAddress } from "../data/farm-db";
 import { mapService, getMockPnuData, PnuParcelData } from "../../api/services/mapService";
 
+const DEFAULT_ADDRESS = "충청남도 청양군 청양읍 적누리";
+
 const CROPS = ["고추", "배추", "무"];
 
 type ZoneCrop = Record<string, string>;
 type LoadState = "idle" | "loading" | "done" | "notfound" | "error";
 
 export function OnboardingScreen() {
-  const { user, setUser, setParcels, setStage, notificationRadius, setNotificationRadius } = useApp();
+  const { user, setUser, setParcels, setStage, setMockData, notificationRadius, setNotificationRadius } = useApp();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
@@ -21,7 +23,7 @@ export function OnboardingScreen() {
   const [region, setRegion] = useState(user.region);
 
   // Step 2 — address & PNU
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(DEFAULT_ADDRESS);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fetchedZones, setFetchedZones] = useState<PnuParcelData[]>([]);
@@ -54,7 +56,27 @@ export function OnboardingScreen() {
         matches.map(async (entry) => {
           try {
             const res = await mapService.getCoordinatesByPnu(entry.pnu);
-            return res.data;
+            const raw = (res.data ?? {}) as Partial<PnuParcelData>;
+
+            // 백엔드는 pnu + coordinates만 반환 — 나머지는 farm-db로 보완
+            const coords = raw.coordinates ?? [];
+            const computedCenter =
+              coords.length > 0
+                ? {
+                    lat: coords.reduce((s, c) => s + c.lat, 0) / coords.length,
+                    lng: coords.reduce((s, c) => s + c.lng, 0) / coords.length,
+                  }
+                : MAP_CENTER;
+
+            const zone: PnuParcelData = {
+              id: raw?.id ?? entry.pnu,
+              pnu: raw?.pnu ?? entry.pnu,
+              address: raw?.address ?? entry.name,
+              area: raw?.area ?? "—",
+              coordinates: coords,
+              center: raw?.center ?? computedCenter,
+            };
+            return zone;
           } catch {
             // 백엔드 미연결 시 mock 데이터 사용
             const mock = getMockPnuData(entry.pnu);
@@ -90,15 +112,20 @@ export function OnboardingScreen() {
       .filter((z) => selectedIds.has(z.id))
       .map((z) => ({
         id: z.id,
-        name: z.address.split(' ').slice(-1)[0] + ' 필지',
+        name: (z.address ?? z.pnu).split(' ').slice(-1)[0] + ' 필지',
         area: z.area,
         crop: getCrop(z.id),
+        coordinates: z.coordinates,
+        center: z.center,
       }));
     setParcels(list);
     setStep(3);
   };
 
-  const finish = () => setStage("app");
+  const finish = () => {
+    setMockData(false);
+    setStage("app");
+  };
 
   // KakaoMap용 파셀 배열
   const mapParcels: ParcelPolygon[] = fetchedZones.map((z, idx) => ({
@@ -328,7 +355,7 @@ export function OnboardingScreen() {
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-[12px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
-                                {z.address.split(' ').slice(-2).join(' ')}
+                                {(z.address ?? z.pnu).split(' ').slice(-2).join(' ')}
                               </p>
                               <p className="text-[10.5px] text-neutral-500 tracking-tight">{crop} · {z.area}㎡</p>
                             </div>
@@ -364,7 +391,7 @@ export function OnboardingScreen() {
                     <div key={z.id} className="flex items-center gap-2.5 px-1">
                       <div className="w-2 h-2 rounded-full" style={{ background: "var(--brand-green)" }} />
                       <span className="text-[12px] text-neutral-900 tracking-tight" style={{ fontWeight: 600 }}>
-                        {z.address.split(' ').slice(-2).join(' ')}
+                        {(z.address ?? z.pnu).split(' ').slice(-2).join(' ')}
                       </span>
                       <span className="ml-auto text-[11px] text-neutral-400 tracking-tight">{z.area}㎡</span>
                       <span className="text-[11px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 600 }}>

@@ -1,5 +1,6 @@
 import { KakaoMap, ParcelPolygon } from "./kakao-map";
 import { PARCEL_COORDS } from "../data/parcel-coords";
+import { useApp } from "../context";
 
 type Props = {
   onZoneClick?: () => void;
@@ -16,14 +17,23 @@ const ZONE_STATES: Record<string, "danger" | "warn" | "safe"> = {
 };
 
 export function FarmMap({ onZoneClick, onZoneSelect }: Props) {
-  const parcels: ParcelPolygon[] = Object.entries(PARCEL_COORDS)
-    .filter(([id]) => id !== "C-1")
-    .map(([id, coords]) => ({
-      id,
-      label: id,
-      coordinates: coords,
-      state: ZONE_STATES[id] ?? "safe",
-    }));
+  const { mockData, parcels: ctxParcels } = useApp();
+
+  const parcels: ParcelPolygon[] = mockData
+    ? Object.entries(PARCEL_COORDS)
+        .filter(([id]) => id !== "C-1")
+        .map(([id, coords]) => ({
+          id,
+          label: id,
+          coordinates: coords,
+          state: ZONE_STATES[id] ?? "safe",
+        }))
+    : ctxParcels.map((p, idx) => ({
+        id: p.id,
+        label: String(idx + 1),
+        coordinates: p.coordinates ?? [],
+        state: "safe" as const,
+      }));
 
   const handleClick = (id: string) => {
     if (onZoneSelect) onZoneSelect(id);
@@ -43,7 +53,9 @@ export function FarmMap({ onZoneClick, onZoneSelect }: Props) {
 
       {/* Chip */}
       <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-white/85 backdrop-blur-md flex items-center pointer-events-none">
-        <span className="text-[10px] text-neutral-700 tracking-tight leading-none">팜맵 · 6 필지</span>
+        <span className="text-[10px] text-neutral-700 tracking-tight leading-none">
+          팜맵 · {parcels.length} 필지
+        </span>
       </div>
     </div>
   );

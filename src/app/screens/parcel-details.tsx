@@ -5,7 +5,7 @@ import { DiagZone } from "../components/diagnosis-sheet";
 import { EmptyParcelList, EmptyDiagHistory } from "../components/empty-states";
 import { KakaoMap, ParcelPolygon } from "../components/kakao-map";
 import { PARCEL_COORDS } from "../data/parcel-coords";
-import { useApp } from "../context";
+import { useApp, Parcel as CtxParcel } from "../context";
 import { latestImageUrl } from "../services/device-api";
 
 type ParcelState = "danger" | "warn" | "safe";
@@ -87,16 +87,25 @@ const HISTORY: HistoryItem[] = [
 function OverviewMap({
   treatedIds,
   onSelect,
+  parcels: parcelList,
+  ctxParcels,
+  useMock,
 }: {
   treatedIds: Set<string>;
   onSelect: (id: string) => void;
+  parcels: Parcel[];
+  ctxParcels: CtxParcel[];
+  useMock: boolean;
 }) {
-  const parcels: ParcelPolygon[] = PARCELS.map((p) => {
+  const parcels: ParcelPolygon[] = parcelList.map((p) => {
     const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
+    const coords = useMock
+      ? (PARCEL_COORDS[p.id] ?? [])
+      : (ctxParcels.find((c) => c.id === p.id)?.coordinates ?? []);
     return {
       id: p.id,
       label: p.id,
-      coordinates: PARCEL_COORDS[p.id] ?? [],
+      coordinates: coords,
       state,
     };
   });
@@ -127,8 +136,8 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function ZoomedMap({ parcel, state }: { parcel: Parcel; state: ParcelState }) {
-  const coords = PARCEL_COORDS[parcel.id];
+function ZoomedMap({ parcel, state, realCoords }: { parcel: Parcel; state: ParcelState; realCoords?: { lat: number; lng: number }[] }) {
+  const coords = realCoords ?? PARCEL_COORDS[parcel.id];
   const parcels: ParcelPolygon[] = coords
     ? [{ id: parcel.id, label: parcel.id, coordinates: coords, state, selected: true }]
     : [];
@@ -228,6 +237,7 @@ function DetailView({
   onBack: () => void;
   onOpenDiagSheet: (zone: DiagZone) => void;
 }) {
+  const { parcels: ctxParcels } = useApp();
   const currentState: ParcelState = treated ? "safe" : parcel.state;
   const tone = TONE[currentState];
 
@@ -291,7 +301,7 @@ function DetailView({
           </div>
 
           <div className="mt-3">
-            <ZoomedMap parcel={parcel} state={currentState} />
+            <ZoomedMap parcel={parcel} state={currentState} realCoords={ctxParcels.find((c) => c.id === parcel.id)?.coordinates} />
           </div>
         </div>
       </div>
@@ -337,7 +347,20 @@ type ParcelDetailsProps = {
 export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiagSheet }: ParcelDetailsProps) {
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [treatedIds, setTreatedIds] = useState<Set<string>>(new Set());
-  const { mockData } = useApp();
+  const { mockData, parcels: ctxParcels } = useApp();
+
+  // 실제 모드에서 context 필지 → Parcel 형식으로 변환
+  const realParcels: Parcel[] = ctxParcels.map((p: CtxParcel) => ({
+    id: p.id,
+    state: "safe" as ParcelState,
+    name: p.name,
+    area: p.area + "㎡",
+    crop: p.crop,
+    note: "—",
+    d: "",
+    labelX: 0,
+    labelY: 0,
+  }));
 
   useEffect(() => {
     if (initialSelectedId) {
@@ -346,7 +369,8 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
     }
   }, [initialSelectedId]);
 
-  const parcel = selectedId ? PARCELS.find((p) => p.id === selectedId) ?? null : null;
+  const activeParcels = mockData ? PARCELS : realParcels;
+  const parcel = selectedId ? activeParcels.find((p) => p.id === selectedId) ?? null : null;
 
   if (parcel) {
     const isTreated = treatedIds.has(parcel.id);
@@ -367,7 +391,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
     );
   }
 
-  if (!mockData) {
+  if (!mockData && ctxParcels.length === 0) {
     return (
       <div className="pb-6 px-5 pt-4">
         <span className="text-[11.5px] text-neutral-500 tracking-tight">전체 필지</span>
@@ -382,15 +406,15 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
   }
 
   const counts = {
-    danger: PARCELS.filter((p) => !treatedIds.has(p.id) && p.state === "danger").length,
-    warn: PARCELS.filter((p) => !treatedIds.has(p.id) && p.state === "warn").length,
-    safe: PARCELS.length - PARCELS.filter((p) => !treatedIds.has(p.id) && p.state !== "safe").length,
+    danger: activeParcels.filter((p) => !treatedIds.has(p.id) && p.state === "danger").length,
+    warn:   activeParcels.filter((p) => !treatedIds.has(p.id) && p.state === "warn").length,
+    safe:   activeParcels.filter((p) => treatedIds.has(p.id) || p.state === "safe").length,
   };
 
   return (
     <div className="pb-6">
       <div className="px-5 pt-2">
-        <span className="text-[11.5px] text-neutral-500 tracking-tight">전체 필지 · 6 구역</span>
+        <span className="text-[11.5px] text-neutral-500 tracking-tight">전체 필지 · {activeParcels.length} 구역</span>
         <p
           className="tracking-tight text-neutral-900"
           style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}
@@ -398,7 +422,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
           지도를 눌러 구역을 선택
         </p>
         <div className="mt-3">
-          <OverviewMap treatedIds={treatedIds} onSelect={setSelectedId} />
+          <OverviewMap treatedIds={treatedIds} onSelect={setSelectedId} parcels={activeParcels} ctxParcels={ctxParcels} useMock={mockData} />
         </div>
       </div>
 
@@ -450,7 +474,7 @@ export function ParcelDetails({ initialSelectedId, onInitialConsumed, onOpenDiag
           <span className="text-[11.5px] text-neutral-400 tracking-tight">탭하여 상세 보기</span>
         </div>
         <div className="space-y-2">
-          {PARCELS.map((p) => {
+          {activeParcels.map((p) => {
             const state: ParcelState = treatedIds.has(p.id) ? "safe" : p.state;
             const t = TONE[state];
             return (
