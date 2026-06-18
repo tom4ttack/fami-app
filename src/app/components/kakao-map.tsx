@@ -192,7 +192,7 @@ function MockMap({
             <polygon
               points={pointsStr}
               fill={color}
-              fillOpacity={parcel.selected ? 0.72 : 0.45}
+              fillOpacity={parcel.selected ? 0.35 : 0.18}
               stroke={color}
               strokeWidth={parcel.state === "danger" ? 2.5 : 1.8}
               strokeOpacity={0.9}
@@ -334,7 +334,7 @@ export function KakaoMap({
         strokeColor: color,
         strokeOpacity: 1,
         fillColor: color,
-        fillOpacity: parcel.selected ? 0.65 : 0.38,
+        fillOpacity: parcel.selected ? 0.35 : 0.18,
       });
       polygon.setMap(mapRef.current);
       overlaysRef.current.push(polygon);
