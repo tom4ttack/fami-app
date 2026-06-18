@@ -33,6 +33,18 @@ export function useFcm() {
       setFcmToken(token);
       console.info("[FCM] 토큰 발급 완료:", token);
 
+      // ✅ 백엔드에 FCM 토큰 등록 (카메라 알림 수신에 필요)
+      try {
+        await fetch("https://api.ghands.kr/api/users/fcm-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        console.info("[FCM] 토큰 서버 등록 완료");
+      } catch (e) {
+        console.warn("[FCM] 토큰 서버 등록 실패:", e);
+      }
+
       // 포그라운드 메시지 리스너 — 앱이 열려 있을 때 수신
       onForegroundMessage((payload) => {
         const notif: PushNotif = {
