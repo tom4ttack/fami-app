@@ -103,7 +103,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>(1);
   const [mockData, setMockData] = useState(true);
-  const [notificationRadius, setNotificationRadius] = useState(5);
+  
+  // 🚨 [수정 완료] 초기 시작값을 5km에서 새로운 최소 기준인 0.1km(100m)로 변경했습니다!
+  const [notificationRadius, setNotificationRadius] = useState(0.1);
+  
   const [user, setUser] = useState<User>({
     name: "",
     phone: "",

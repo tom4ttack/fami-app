@@ -1,9 +1,21 @@
-import { useState } from "react";
-
-const DATES = ["5/10", "5/12", "5/14", "오늘", "예측"];
+import { useState, useMemo } from "react";
 
 export function TimelineControl() {
+  // 오늘 기준으로 2일 간격의 과거 날짜들을 동적 생성
+  const DATES = useMemo(() => {
+    const now = new Date();
+    const format = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
+    
+    const d6 = new Date(); d6.setDate(now.getDate() - 6);
+    const d4 = new Date(); d4.setDate(now.getDate() - 4);
+    const d2 = new Date(); d2.setDate(now.getDate() - 2);
+
+    return [format(d6), format(d4), format(d2), "오늘", "예측"];
+  }, []);
+
+  // 인덱스 3번인 '오늘'을 기본 활성화 상태로 설정
   const [active, setActive] = useState(3);
+
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between mb-2 px-1">

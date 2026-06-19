@@ -13,7 +13,7 @@ export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
   const { dark, setDark, fontScale, setFontScale, mockData, setMockData, user, parcels, setStage, notificationRadius, setNotificationRadius } = useApp();
   const [devMode, setDevMode] = useState(false);
   const tapCountRef = useRef(0);
-  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const tapTimerRef = useRef<any>(null);
 
   const handleLogout = () => {
     onClose();
@@ -124,28 +124,28 @@ export function SideMenu({ open, onClose, onEditUser, onEditParcels }: Props) {
               </div>
               <div className="flex items-baseline gap-0.5">
                 <span className="text-[18px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 700 }}>
-                  {notificationRadius}
+                  {notificationRadius < 1 ? notificationRadius * 1000 : notificationRadius}
                 </span>
                 <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
-                  km
+                  {notificationRadius < 1 ? "m" : "km"}
                 </span>
               </div>
             </div>
             <input
               type="range"
-              min="1"
-              max="20"
-              step="1"
+              min="0.1"
+              max="1.5"
+              step="0.1"
               value={notificationRadius}
               onChange={(e) => setNotificationRadius(Number(e.target.value))}
               className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 1) / 19) * 100}%, #d4d4d4 ${((notificationRadius - 1) / 19) * 100}%, #d4d4d4 100%)`
+                background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 0.1) / 1.4) * 100}%, #d4d4d4 ${((notificationRadius - 0.1) / 1.4) * 100}%, #d4d4d4 100%)`
               }}
             />
             <div className="flex justify-between mt-1">
-              <span className="text-[9px] text-neutral-400 tracking-tight">1km</span>
-              <span className="text-[9px] text-neutral-400 tracking-tight">20km</span>
+              <span className="text-[9px] text-neutral-400 tracking-tight">100m</span>
+              <span className="text-[9px] text-neutral-400 tracking-tight">1.5km</span>
             </div>
           </div>
 

@@ -1,26 +1,37 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const ALL_DATES = [
-  { d: "5.1", w: "금" },
-  { d: "5.2", w: "토" },
-  { d: "5.3", w: "일" },
-  { d: "5.4", w: "월" },
-  { d: "5.5", w: "화" },
-  { d: "5.6", w: "수" },
-  { d: "5.7", w: "목" },
-  { d: "5.8", w: "금" },
-  { d: "5.9", w: "토" },
-  { d: "5.10", w: "일" },
-  { d: "5.11", w: "월" },
-  { d: "5.12", w: "화" },
-  { d: "5.13", w: "수" },
-  { d: "5.14", w: "목" },
-  { d: "5.15", w: "금" },
-  { d: "5.16", w: "오늘", today: true },
-];
-
 export function DateSelector() {
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+
+  // 1. 상단 타이틀용 현재 연.월 동적 생성 (예: 2026.06)
+  const currentYearMonth = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}.${month}`;
+  }, []);
+
+  // 2. 오늘 기준 과거 15일 전부터 오늘까지 총 16개의 날짜 오브젝트 동적 생성
+  const ALL_DATES = useMemo(() => {
+    const result = [];
+    const now = new Date();
+
+    for (let i = 15; i >= 0; i--) {
+      const targetDate = new Date();
+      targetDate.setDate(now.getDate() - i);
+      
+      const isToday = i === 0;
+      result.push({
+        d: `${targetDate.getMonth() + 1}.${targetDate.getDate()}`,
+        w: isToday ? "오늘" : weekdays[targetDate.getDay()],
+        today: isToday,
+      });
+    }
+    return result;
+  }, []);
+
+  // 배열의 마지막 아이템인 '오늘'이 기본 선택되도록 지정
   const [active, setActive] = useState(ALL_DATES.length - 1);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +45,8 @@ export function DateSelector() {
     <div className="px-5">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[12px] text-neutral-500 tracking-tight">날짜별 변화 보기</span>
-        <span className="text-[11px] text-neutral-400 tracking-tight">2026.05</span>
+        {/* 하드코딩되었던 연.월이 동적으로 변환됩니다 */}
+        <span className="text-[11px] text-neutral-400 tracking-tight">{currentYearMonth}</span>
       </div>
       <div className="flex items-center gap-1.5">
         <button
@@ -72,7 +84,7 @@ export function DateSelector() {
                   >
                     {it.d}
                   </span>
-                  {(it as { today?: boolean }).today && (
+                  {it.today && (
                     <span className={`mt-0.5 w-1 h-1 rounded-full ${isActive ? "bg-white" : "bg-[#E9B44C]"}`} />
                   )}
                 </button>
