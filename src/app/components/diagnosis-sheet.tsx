@@ -14,6 +14,7 @@ export type DiagZone = {
   diseaseEn: string;
   color: string;
   drugs: { name: string; primary?: boolean; reason: string }[];
+  imageUrl?: string; // 🚨 알림에서 받은 사진 처리용
 };
 
 const DEFAULT_ZONE: DiagZone = {
@@ -36,18 +37,24 @@ type Props = { open: boolean; onClose: () => void; zone?: DiagZone };
 export function DiagnosisSheet({ open, onClose, zone = DEFAULT_ZONE }: Props) {
   const bgAccent = `${zone.color}18`;
   const { liveImageTs } = useApp();
-  const mainPhoto = liveImageTs > 0 ? latestImageUrl(liveImageTs) : zone.photo;
+  
+  // // 🚨 알림으로 넘어온 이미지가 우선적으로 보이도록 설정
+  // const mainPhoto = (zone as any).imageUrl || (liveImageTs > 0 ? latestImageUrl(liveImageTs) : zone.photo);
+  // ✅ 알림으로 넘어온 진짜 사진 주소를 강제로 꽂아줍니다!
+  const mainPhoto = zone.photo;
 
   return (
     <>
+      {/* 🚨 배경 딤처리에 z-[999] 추가하여 지도 덮음 방지 */}
       <div
-        className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
+        className={`absolute inset-0 z-[999] bg-black/40 transition-opacity duration-300 ${
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={onClose}
       />
+      {/* 🚨 진단 시트 컨테이너에 z-[999] 추가하여 지도 덮음 방지 */}
       <div
-        className={`absolute left-0 right-0 bottom-0 rounded-t-[22px] bg-white transition-transform duration-300 ease-out ${
+        className={`absolute z-[999] left-0 right-0 bottom-0 rounded-t-[22px] bg-white transition-transform duration-300 ease-out ${
           open ? "translate-y-0" : "translate-y-full"
         }`}
         style={{ height: "86%" }}

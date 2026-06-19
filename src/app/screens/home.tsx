@@ -69,17 +69,24 @@ function DiagnosisControl() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const doCapture = async () => {
-    setCapturing(true);
+  setCapturing(true);
+  try {
+    console.log("촬영 명령 전송 중...");
+    await triggerCapture();
+    setLiveImageTs(Date.now());
+    
     try {
-      await triggerCapture();
-      setLiveImageTs(Date.now());
-      try {
-        const result = await getDiagnosis();
-        setLiveDiagnosis(result);
-      } catch {}
-    } catch {}
-    setCapturing(false);
-  };
+      const result = await getDiagnosis();
+      setLiveDiagnosis(result);
+      console.log("진단 결과:", result);
+    } catch (err) {
+      console.error("진단 API 호출 실패:", err); // 🚨 에러 내용을 확인하세요!
+    }
+  } catch (err) {
+    console.error("촬영 명령 실패:", err); // 🚨 에러 내용을 확인하세요!
+  }
+  setCapturing(false);
+};
 
   useEffect(() => {
     if (!captureRunning) {
@@ -87,7 +94,7 @@ function DiagnosisControl() {
       return;
     }
     doCapture();
-    intervalRef.current = setInterval(doCapture, CAPTURE_INTERVAL_MS);
+    // intervalRef.current = setInterval(doCapture, CAPTURE_INTERVAL_MS);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -156,7 +163,7 @@ function DiagnosisControl() {
             style={{ background: "#CF4F0E", fontWeight: 700 }}
           >
             <AlertOctagon className="w-4 h-4" />
-            비상 정지 — 즉시 귀환
+            비상 정지
           </button>
         )}
       </div>

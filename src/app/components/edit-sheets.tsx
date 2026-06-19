@@ -127,6 +127,15 @@ export function ParcelEditSheet({ open, onClose }: Props) {
   const [draftArea, setDraftArea] = useState("");
   const [draftCrop, setDraftCrop] = useState("청양고추");
 
+  // 🚨 상세창과 동일하게 A-1, A-2 형식으로 변환해주는 로직 추가
+  const LETTERS = ['A','B','C','D','E','F','G','H','I','J'];
+  const getShortLabel = (id: string, idx: number) => {
+    if (id.length <= 8) return id; // 기존 목업 데이터(A-1 등)는 그대로 사용
+    const letter = LETTERS[Math.floor(idx / 5)] ?? 'P';
+    const num = (idx % 5) + 1;
+    return `${letter}-${num}`;
+  };
+
   useEffect(() => {
     if (open) setList(parcels);
   }, [open, parcels]);
@@ -178,38 +187,44 @@ export function ParcelEditSheet({ open, onClose }: Props) {
       </div>
 
       <div className="mt-3 space-y-2">
-        {list.map((p) => (
-          <div key={p.id} className="rounded-[12px] bg-white p-3">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                style={{ background: "color-mix(in srgb, var(--brand-green) 12%, transparent)" }}
-              >
-                <span className="text-[11px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 800 }}>
-                  {p.id}
+        {list.map((p, index) => {
+          // 🚨 여기서 짧은 라벨(A-1, B-2 등)을 생성합니다.
+          const shortLabel = getShortLabel(p.id, index);
+
+          return (
+            <div key={p.id} className="rounded-[12px] bg-white p-3">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+                  style={{ background: "color-mix(in srgb, var(--brand-green) 12%, transparent)" }}
+                >
+                  <span className="text-[11px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 800 }}>
+                    {/* 🚨 긴 PNU 대신 짧은 A-1 라벨을 렌더링 */}
+                    {shortLabel}
+                  </span>
+                </div>
+                <span className="text-[13.5px] text-neutral-900 tracking-tight flex-1" style={{ fontWeight: 700 }}>
+                  {p.name}
                 </span>
+                <button
+                  onClick={() => remove(p.id)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-neutral-100 active:bg-neutral-200"
+                >
+                  <Trash2 className="w-3.5 h-3.5" style={{ color: "#CF4F0E" }} />
+                </button>
               </div>
-              <span className="text-[13.5px] text-neutral-900 tracking-tight flex-1" style={{ fontWeight: 700 }}>
-                {p.name}
-              </span>
-              <button
-                onClick={() => remove(p.id)}
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-neutral-100 active:bg-neutral-200"
-              >
-                <Trash2 className="w-3.5 h-3.5" style={{ color: "#CF4F0E" }} />
-              </button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <CompactField
+                  label="면적(㎡)"
+                  value={p.area}
+                  onChange={(v) => update(p.id, { area: v })}
+                  inputMode="numeric"
+                />
+                <CompactField label="작물" value={p.crop} onChange={(v) => update(p.id, { crop: v })} />
+              </div>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <CompactField
-                label="면적(㎡)"
-                value={p.area}
-                onChange={(v) => update(p.id, { area: v })}
-                inputMode="numeric"
-              />
-              <CompactField label="작물" value={p.crop} onChange={(v) => update(p.id, { crop: v })} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {list.length === 0 && (
           <div className="rounded-[12px] bg-neutral-50 py-6 text-center">
             <span className="text-[12px] text-neutral-500 tracking-tight">등록된 필지가 없습니다.</span>

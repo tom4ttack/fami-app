@@ -54,7 +54,11 @@ export function useFcm() {
           time: new Date(),
           level: extractLevel(payload.data as Record<string, string> | undefined),
           zone: payload.data?.zone,
-          data: payload.data as Record<string, string> | undefined,
+          data: {
+            ...payload.data as Record<string, string>,
+            // 서버에서 보낸 필드명(image_url)을 확실하게 저장
+            imageUrl: (payload.data?.image_url ?? "") as string
+          },
           unread: true,
         };
         addPushNotif(notif);
@@ -79,7 +83,7 @@ export function useFcm() {
     if (Notification.permission === "granted") {
       initFcm();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

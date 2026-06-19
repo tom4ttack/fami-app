@@ -178,7 +178,8 @@ export function DiagnosisDashboard({ onOpenDiagSheet }: { onOpenDiagSheet: (zone
                         >
                           <div className="w-16 h-16 rounded-[10px] flex-shrink-0 relative bg-neutral-200 overflow-hidden">
                             <ImageWithFallback
-                              src={liveImageTs > 0 ? latestImageUrl(liveImageTs) : z.photo}
+                              // src={liveImageTs > 0 ? latestImageUrl(liveImageTs) : z.photo}
+                              src={z.photo}
                               alt="병반 사진"
                               className="w-full h-full object-cover"
                             />

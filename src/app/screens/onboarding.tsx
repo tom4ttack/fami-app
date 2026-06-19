@@ -43,14 +43,12 @@ export function OnboardingScreen() {
     setFetchedZones([]);
     setSelectedIds(new Set());
 
-    // 1. FARM_DB에서 PNU 매칭
     const matches = searchFarmByAddress(address.trim());
     if (matches.length === 0) {
       setLoadState("notfound");
       return;
     }
 
-    // 2. 각 PNU에 대해 AWS 서버에서 좌표 조회
     try {
       const zones: PnuParcelData[] = await Promise.all(
         matches.map(async (entry) => {
@@ -119,7 +117,6 @@ export function OnboardingScreen() {
     setStage("app");
   };
 
-  // KakaoMap용 파셀 배열
   const mapParcels: ParcelPolygon[] = fetchedZones.map((z, idx) => ({
     id: z.id,
     label: String(idx + 1),
@@ -137,6 +134,13 @@ export function OnboardingScreen() {
       state: "safe" as const,
       selected: true,
     }));
+
+  // 🚨 [시각 효과 완벽 교정] 원 크기가 지도 영역 안에 완전히 쏙 들어오도록 줌 레벨을 더 시원하게 낮췄습니다!
+  const getDynamicMapLevel = (radius: number) => {
+    if (radius <= 0.1) return 3; // 100m일 때 원이 다 보이도록 배율 최적화
+    if (radius <= 0.5) return 5; // 500m일 때 원 모양이 깨지지 않고 쏙 들어오도록 축소
+    return 6;                    // 1km일 때 대폭 축소하여 원 전체 가두기
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -206,7 +210,6 @@ export function OnboardingScreen() {
         {/* ── STEP 2 ── */}
         {step === 2 && (
           <div className="space-y-3">
-            {/* Address search */}
             <div className="rounded-[16px] bg-white p-3.5">
               <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
                 팜맵 주소로 필지 불러오기
@@ -240,8 +243,6 @@ export function OnboardingScreen() {
                 </button>
               </div>
 
-
-              {/* 로딩 */}
               {loadState === "loading" && (
                 <div className="mt-3 h-[180px] rounded-[13px] bg-neutral-50 flex flex-col items-center justify-center gap-2">
                   <LoadSpinner size={20} color="var(--brand-green)" />
@@ -249,7 +250,6 @@ export function OnboardingScreen() {
                 </div>
               )}
 
-              {/* 검색 결과 없음 */}
               {loadState === "notfound" && (
                 <div className="mt-3 h-[120px] rounded-[13px] bg-neutral-50 flex flex-col items-center justify-center gap-2">
                   <MapPinOff className="w-6 h-6 text-neutral-300" />
@@ -260,7 +260,6 @@ export function OnboardingScreen() {
                 </div>
               )}
 
-              {/* 서버 오류 */}
               {loadState === "error" && (
                 <div className="mt-3 rounded-[13px] bg-red-50 p-3 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
@@ -270,7 +269,6 @@ export function OnboardingScreen() {
                 </div>
               )}
 
-              {/* 지도 + 필지 선택 */}
               {loadState === "done" && (
                 <div className="mt-3">
                   <p className="text-[10.5px] text-neutral-500 tracking-tight mb-1.5">
@@ -292,7 +290,6 @@ export function OnboardingScreen() {
               )}
             </div>
 
-            {/* 작물 설정 */}
             {loadState === "done" && (
               <div className="rounded-[16px] bg-white p-3.5">
                 <div className="flex items-center justify-between mb-2.5">
@@ -372,7 +369,6 @@ export function OnboardingScreen() {
               </div>
             )}
 
-            {/* 등록 필지 요약 */}
             {loadState === "done" && selectedIds.size > 0 && (
               <div className="rounded-[16px] bg-white p-3.5">
                 <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
@@ -417,13 +413,13 @@ export function OnboardingScreen() {
                 <KakaoMap
                   parcels={step3Parcels}
                   center={resolvedCenter}
-                  level={6}
+                  level={getDynamicMapLevel(notificationRadius)}
                   radiusKm={notificationRadius}
                   className="w-full h-full"
                 />
-                <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/85 backdrop-blur-md flex items-center pointer-events-none">
+                <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/85 backdrop-blur-md flex items-center pointer-events-none" style={{ lineHeight: 1 }}>
                   <span className="text-[10px] text-neutral-700 tracking-tight leading-none" style={{ fontWeight: 600 }}>
-                    🔔 알림 반경: {notificationRadius}km
+                    🔔 알림 반경: {notificationRadius < 1 ? `${notificationRadius * 1000}m` : `${notificationRadius}km`}
                   </span>
                 </div>
                 <div className="absolute bottom-2.5 left-2.5 px-2 py-1 rounded-[8px] bg-white/80 backdrop-blur-md flex items-center pointer-events-none">
@@ -438,42 +434,45 @@ export function OnboardingScreen() {
                   </span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-[28px] tracking-tight" style={{ color: "var(--brand-green)", fontWeight: 800, letterSpacing: "-0.03em" }}>
-                      {notificationRadius}
+                      {notificationRadius < 1 ? notificationRadius * 1000 : notificationRadius}
                     </span>
-                    <span className="text-[13px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>km</span>
+                    <span className="text-[13px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
+                      {notificationRadius < 1 ? "m" : "km"}
+                    </span>
                   </div>
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="20"
-                  step="1"
+                  min="0.1"
+                  max="1.5"
+                  step="0.1"
                   value={notificationRadius}
                   onChange={(e) => setNotificationRadius(Number(e.target.value))}
                   className="w-full h-2 rounded-full appearance-none cursor-pointer"
                   style={{
-                    background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 ${((notificationRadius - 1) / 19) * 100}%, #e5e5e5 100%)`,
+                    background: `linear-gradient(to right, var(--brand-green) 0%, var(--brand-green) ${((notificationRadius - 0.1) / 1.4) * 100}%, #e5e5e5 ${((notificationRadius - 0.1) / 1.4) * 100}%, #e5e5e5 100%)`,
                   }}
                 />
                 <div className="flex justify-between mt-1.5">
-                  <span className="text-[10px] text-neutral-400 tracking-tight">1km</span>
-                  <span className="text-[10px] text-neutral-400 tracking-tight">20km</span>
+                  <span className="text-[10px] text-neutral-400 tracking-tight">100m</span>
+                  <span className="text-[10px] text-neutral-400 tracking-tight">1.5km</span>
                 </div>
               </div>
 
               <div className="mt-3 rounded-[12px] p-3" style={{ background: "rgba(233,180,76,0.10)" }}>
                 <p className="text-[11.5px] text-neutral-700 tracking-tight" style={{ lineHeight: 1.5 }}>
-                  내 필지에서 <span style={{ color: "#8a6620", fontWeight: 700 }}>{notificationRadius}km 이내</span>의 다른 농가 필지에서 병해가 검출되면 실시간 알림을 받습니다.
+                  내 필지에서 <span style={{ color: "#8a6620", fontWeight: 700 }}>{notificationRadius < 1 ? `${notificationRadius * 1000}m` : `${notificationRadius}km`} 이내</span>의 다른 농가 필지에서 병해가 검출되면 실시간 알림을 받습니다.
                 </p>
               </div>
             </div>
 
             <div className="rounded-[16px] bg-white p-3.5">
               <span className="text-[11px] text-neutral-500 tracking-tight" style={{ fontWeight: 600 }}>
-                추천 설정
+                추천 설정 권역 프리셋
               </span>
               <div className="mt-2 grid grid-cols-3 gap-2">
-                {[3, 5, 10].map((km) => (
+                {/* 🚨 요구사항: 프리셋 범위를 100m / 500m / 1km 로 강제 리매핑 완료! */}
+                {[0.1, 0.5, 1.0].map((km) => (
                   <button
                     key={km}
                     onClick={() => setNotificationRadius(km)}
@@ -484,12 +483,13 @@ export function OnboardingScreen() {
                         : { background: "#f0f0ee", color: "#555" }
                     }
                   >
-                    <span className="text-[13px] tracking-tight" style={{ fontWeight: 700 }}>{km}km</span>
+                    <span className="text-[13px] tracking-tight" style={{ fontWeight: 700 }}>
+                      {km < 1 ? `${km * 1000}m` : `${km}km`}
+                    </span>
                   </button>
                 ))}
               </div>
               <p className="mt-2 text-[10px] text-neutral-400 tracking-tight">
-                • 3km: 인접 농가만 • 5km: 같은 마을권 • 10km: 광역 모니터링
               </p>
             </div>
           </div>
